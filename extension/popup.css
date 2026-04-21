@@ -56,6 +56,7 @@ body.favorites-gallery-mode {
 .favorites-gallery-mode .topbar,
 .favorites-gallery-mode .tabs,
 .favorites-gallery-mode .notice,
+.favorites-gallery-mode .fallback-panel,
 .favorites-gallery-mode #workspaceView {
   display: none !important;
 }
@@ -267,6 +268,35 @@ h2 {
   color: var(--blue-deep);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.fallback-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-md);
+  align-items: center;
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid oklch(83% 0.075 255);
+  border-radius: 8px;
+  background: oklch(97% 0.028 255);
+}
+
+.fallback-panel h2 {
+  margin-bottom: var(--space-xs);
+}
+
+.fallback-panel p:not(.eyebrow) {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.48;
+}
+
+.fallback-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(82px, 1fr));
+  gap: var(--space-sm);
 }
 
 .workspace {
@@ -672,7 +702,12 @@ h2 {
   }
 
   .topbar,
-  .workspace {
+  .workspace,
+  .fallback-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .fallback-actions {
     grid-template-columns: 1fr;
   }
 

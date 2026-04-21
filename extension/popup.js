@@ -6,6 +6,7 @@ const DB_NAME = "pixivdlBrowser";
 const DB_VERSION = 1;
 const WORK_STORE = "works";
 const IMAGE_STORE = "images";
+const EXTERNAL_LOOKUP_URL = "https://www.bing.com/search?q=pixiv%20{pid}";
 
 const state = {
   work: null,
@@ -15,7 +16,12 @@ const state = {
   previewUrls: new Map(),
   busy: false,
   openedAsTab: false,
-  view: "workspace"
+  view: "workspace",
+  fallback: {
+    visible: false,
+    pid: "",
+    message: ""
+  }
 };
 
 const elements = {
@@ -23,6 +29,11 @@ const elements = {
   pidInput: document.querySelector("#pidInput"),
   fetchButton: document.querySelector("#fetchButton"),
   notice: document.querySelector("#notice"),
+  fallbackPanel: document.querySelector("#fallbackPanel"),
+  fallbackMessage: document.querySelector("#fallbackMessage"),
+  loginPixivButton: document.querySelector("#loginPixivButton"),
+  fallbackPixivButton: document.querySelector("#fallbackPixivButton"),
+  fallbackSearchButton: document.querySelector("#fallbackSearchButton"),
   workspaceTab: document.querySelector("#workspaceTab"),
   favoritesTab: document.querySelector("#favoritesTab"),
   workspaceView: document.querySelector("#workspaceView"),
@@ -83,6 +94,9 @@ function bindEvents() {
   elements.selectAllButton.addEventListener("click", toggleSelectAll);
   elements.favoriteButton.addEventListener("click", toggleFavorite);
   elements.openPixivButton.addEventListener("click", openCurrentWorkOnPixiv);
+  elements.loginPixivButton.addEventListener("click", openPixivLogin);
+  elements.fallbackPixivButton.addEventListener("click", openFallbackPixivWork);
+  elements.fallbackSearchButton.addEventListener("click", openFallbackExternalLookup);
   elements.zipMode.addEventListener("click", () => setMode("zip"));
   elements.fileMode.addEventListener("click", () => setMode("files"));
   elements.downloadButton.addEventListener("click", downloadSelected);
@@ -91,6 +105,7 @@ function bindEvents() {
 async function loadWork(pid) {
   setBusy(true);
   showNotice("正在读取 Pixiv 作品...");
+  hideFallback();
   clearPreviewUrls();
   try {
     let work;
@@ -112,12 +127,15 @@ async function loadWork(pid) {
     if (!elements.notice.textContent.startsWith("Pixiv 请求失败")) {
       showNotice(`已获取 ${work.pageCount} 张图片`);
     }
+    hideFallback();
     render();
     await loadPreviews(work);
   } catch (error) {
     state.work = null;
     state.selectedPages.clear();
-    showNotice(error instanceof Error ? error.message : "获取作品失败");
+    const message = error instanceof Error ? error.message : "获取作品失败";
+    showNotice(message);
+    showFallback(pid, message);
     render();
   } finally {
     setBusy(false);
@@ -454,6 +472,7 @@ function setTab(tab) {
   elements.workspaceTab.classList.toggle("active", showWorkspace);
   elements.favoritesTab.classList.toggle("active", !showWorkspace);
   document.body.classList.toggle("favorites-mode", !showWorkspace);
+  renderFallback();
   if (!showWorkspace) {
     renderFavorites();
   }
@@ -468,11 +487,64 @@ function pixivArtworkUrl(pid) {
   return `${PIXIV_ORIGIN}/artworks/${encodeURIComponent(pid)}`;
 }
 
+function pixivLoginUrl() {
+  return `${PIXIV_ORIGIN}/login.php`;
+}
+
 function openCurrentWorkOnPixiv() {
   if (!state.work) {
     return;
   }
   chrome.tabs.create({ url: pixivArtworkUrl(state.work.pid) });
+}
+
+function openPixivLogin() {
+  chrome.tabs.create({ url: pixivLoginUrl() });
+}
+
+function currentFallbackPid() {
+  return state.fallback.pid || elements.pidInput.value.trim();
+}
+
+function openFallbackPixivWork() {
+  const pid = currentFallbackPid();
+  if (/^\d+$/.test(pid)) {
+    chrome.tabs.create({ url: pixivArtworkUrl(pid) });
+  }
+}
+
+function openFallbackExternalLookup() {
+  const pid = currentFallbackPid();
+  if (/^\d+$/.test(pid)) {
+    chrome.tabs.create({ url: EXTERNAL_LOOKUP_URL.replace("{pid}", encodeURIComponent(pid)) });
+  }
+}
+
+function showFallback(pid, message) {
+  state.fallback = {
+    visible: true,
+    pid,
+    message: `${message}。插件不会自动抓取第三方镜像；可以手动登录、打开原页，或用外部检索入口自行确认来源。`
+  };
+  renderFallback();
+}
+
+function hideFallback() {
+  state.fallback = {
+    visible: false,
+    pid: "",
+    message: ""
+  };
+  renderFallback();
+}
+
+function renderFallback() {
+  const shouldShow = state.fallback.visible && state.view === "workspace" && !state.openedAsTab;
+  elements.fallbackPanel.hidden = !shouldShow;
+  if (!shouldShow) {
+    return;
+  }
+  elements.fallbackMessage.textContent = state.fallback.message;
 }
 
 function setBusy(value) {
@@ -497,6 +569,7 @@ function render() {
   renderImages();
   renderDownload();
   renderFavorites();
+  renderFallback();
 }
 
 function renderWork() {
