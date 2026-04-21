@@ -33,7 +33,7 @@ PixivDL Browser v0.4.2 是项目转为浏览器扩展后的发布版本。它把
 ## 发布文件
 
 - `PixivDL-Browser-0.4.2.zip`
-- SHA256: `7AB8640F3D02D805DEF3A07CB90C34EDDA3B5C6E630FA83C78412DC535D6D62B`
+- SHA256: `由 GitHub Actions 发布流程生成`
 
 ## 限制
 

@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package extension
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          manifest_version="$(node -p "require('./extension/manifest.json').version")"
+          if [ "$manifest_version" != "$version" ]; then
+            echo "Tag version $version does not match manifest version $manifest_version" >&2
+            exit 1
+          fi
+
+          package_dir="dist/PixivDL-Browser-${version}"
+          mkdir -p "$package_dir"
+          cp extension/manifest.json "$package_dir/"
+          cp extension/popup.css "$package_dir/"
+          cp extension/popup.html "$package_dir/"
+          cp extension/popup.js "$package_dir/"
+          cp extension/README.md "$package_dir/"
+          cp extension/rules.json "$package_dir/"
+
+          (
+            cd "$package_dir"
+            zip -r "../PixivDL-Browser-${version}.zip" .
+          )
+
+          asset="dist/PixivDL-Browser-${version}.zip"
+          sha256="$(sha256sum "$asset" | awk '{print $1}')"
+          cp RELEASE_NOTES.md release-body.md
+          sed -i "s/^\\- SHA256:.*/- SHA256: \`${sha256^^}\`/" release-body.md
+          echo "asset=$asset" >> "$GITHUB_ENV"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$asset" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "PixivDL Browser $GITHUB_REF_NAME" \
+            --notes-file release-body.md
