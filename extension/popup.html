@@ -98,7 +98,14 @@
           </div>
           <button id="openFavoritesTabButton" class="secondary-button" type="button">新标签浏览</button>
         </div>
-        <div id="favoritesGrid" class="favorites-grid"></div>
+        <form id="gallerySearchForm" class="gallery-search" hidden>
+          <input id="gallerySearchInput" autocomplete="off" placeholder="搜索收藏标题 / 作者 / PID" />
+          <button id="gallerySearchButton" class="secondary-button" type="submit">搜索</button>
+        </form>
+        <div class="favorites-layout">
+          <div id="favoritesGrid" class="favorites-grid"></div>
+          <aside id="favoriteDetail" class="favorite-detail" aria-label="作品详情"></aside>
+        </div>
       </section>
     </main>
     <script src="popup.js"></script>

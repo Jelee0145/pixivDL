@@ -16,6 +16,9 @@ const state = {
   busy: false,
   openedAsTab: false,
   view: "workspace",
+  workspaceInput: "",
+  favoriteQuery: "",
+  selectedFavoritePid: "",
   failedPid: "",
   failureMessage: ""
 };
@@ -43,6 +46,10 @@ const elements = {
   openPixivButton: document.querySelector("#openPixivButton"),
   openFavoritesTabButton: document.querySelector("#openFavoritesTabButton"),
   favoritesTitle: document.querySelector("#favoritesTitle"),
+  gallerySearchForm: document.querySelector("#gallerySearchForm"),
+  gallerySearchInput: document.querySelector("#gallerySearchInput"),
+  gallerySearchButton: document.querySelector("#gallerySearchButton"),
+  favoriteDetail: document.querySelector("#favoriteDetail"),
   selectAllButton: document.querySelector("#selectAllButton"),
   imageGrid: document.querySelector("#imageGrid"),
   zipMode: document.querySelector("#zipMode"),
@@ -74,12 +81,40 @@ async function init() {
 function bindEvents() {
   elements.pidForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const pid = elements.pidInput.value.trim();
+    const value = elements.pidInput.value.trim();
+    if (state.view === "favorites" && !state.openedAsTab) {
+      state.favoriteQuery = value;
+      renderFavorites();
+      return;
+    }
+    const pid = value;
     if (!/^\d+$/.test(pid)) {
       showNotice("PID 只能包含数字");
       return;
     }
+    state.workspaceInput = pid;
     await loadWork(pid);
+  });
+
+  elements.pidInput.addEventListener("input", () => {
+    const value = elements.pidInput.value.trim();
+    if (state.view === "favorites" && !state.openedAsTab) {
+      state.favoriteQuery = value;
+      renderFavorites();
+    } else {
+      state.workspaceInput = value;
+    }
+  });
+
+  elements.gallerySearchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    state.favoriteQuery = elements.gallerySearchInput.value.trim();
+    renderFavorites();
+  });
+
+  elements.gallerySearchInput.addEventListener("input", () => {
+    state.favoriteQuery = elements.gallerySearchInput.value.trim();
+    renderFavorites();
   });
 
   elements.workspaceTab.addEventListener("click", () => setTab("workspace"));
@@ -96,6 +131,7 @@ function bindEvents() {
 
 async function loadWork(pid) {
   setBusy(true);
+  state.workspaceInput = pid;
   showNotice("正在读取 Pixiv 作品...");
   clearFailure();
   clearPreviewUrls();
@@ -427,6 +463,9 @@ function blobToDataUrl(blob) {
 async function loadFavorites() {
   const data = await storageGet(FAVORITES_KEY);
   state.favorites = Array.isArray(data[FAVORITES_KEY]) ? data[FAVORITES_KEY] : [];
+  if (!state.selectedFavoritePid && state.favorites[0]) {
+    state.selectedFavoritePid = state.favorites[0].pid;
+  }
 }
 
 async function saveFavorites() {
@@ -453,6 +492,7 @@ function storageSet(value) {
 }
 
 function setTab(tab) {
+  rememberCurrentInput();
   const showWorkspace = tab === "workspace";
   state.view = showWorkspace ? "workspace" : "favorites";
   elements.workspaceView.hidden = !showWorkspace;
@@ -464,8 +504,33 @@ function setTab(tab) {
   elements.workspaceTab.classList.toggle("active", showWorkspace);
   elements.favoritesTab.classList.toggle("active", !showWorkspace);
   document.body.classList.toggle("favorites-mode", !showWorkspace);
+  configureSearchMode();
   if (!showWorkspace) {
     renderFavorites();
+  }
+}
+
+function rememberCurrentInput() {
+  const value = elements.pidInput.value.trim();
+  if (state.view === "favorites" && !state.openedAsTab) {
+    state.favoriteQuery = value;
+  } else if (state.view === "workspace") {
+    state.workspaceInput = value;
+  }
+}
+
+function configureSearchMode() {
+  if (state.openedAsTab) {
+    return;
+  }
+  if (state.view === "favorites") {
+    elements.pidInput.value = state.favoriteQuery;
+    elements.pidInput.placeholder = "搜索收藏标题 / 作者 / PID";
+    elements.fetchButton.textContent = "搜索";
+  } else {
+    elements.pidInput.value = state.workspaceInput;
+    elements.pidInput.placeholder = "输入作品 PID";
+    elements.fetchButton.textContent = "获取";
   }
 }
 
@@ -528,6 +593,9 @@ function render() {
 
 function renderWork() {
   const work = state.work;
+  if (work) {
+    state.workspaceInput = work.pid;
+  }
   elements.emptyState.hidden = Boolean(work);
   elements.workSummary.hidden = !work;
   elements.selectAllButton.disabled = !work;
@@ -605,7 +673,19 @@ function renderDownload() {
 function renderFavorites() {
   elements.favoritesGrid.textContent = "";
   elements.openFavoritesTabButton.hidden = state.openedAsTab;
+  elements.gallerySearchForm.hidden = !state.openedAsTab;
+  elements.favoriteDetail.hidden = !state.openedAsTab;
+  if (state.openedAsTab && elements.gallerySearchInput.value !== state.favoriteQuery) {
+    elements.gallerySearchInput.value = state.favoriteQuery;
+  }
   elements.favoritesTitle.textContent = state.openedAsTab ? "收藏图片仓库" : "本地收藏夹";
+  const query = state.favoriteQuery.trim().toLowerCase();
+  const favorites = query
+    ? state.favorites.filter((favorite) => favoriteMatchesQuery(favorite, query))
+    : state.favorites;
+  if (state.openedAsTab && favorites.length > 0 && !favorites.some((favorite) => favorite.pid === state.selectedFavoritePid)) {
+    state.selectedFavoritePid = favorites[0].pid;
+  }
   if (state.favorites.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
@@ -615,19 +695,33 @@ function renderFavorites() {
     body.textContent = "收藏作品后会显示封面和图片数量。";
     empty.append(title, body);
     elements.favoritesGrid.append(empty);
+    renderFavoriteDetail(null);
+    return;
+  }
+  if (favorites.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    const title = document.createElement("strong");
+    title.textContent = "没有匹配收藏";
+    const body = document.createElement("span");
+    body.textContent = "换个标题、作者或 PID 试试。";
+    empty.append(title, body);
+    elements.favoritesGrid.append(empty);
+    renderFavoriteDetail(null);
     return;
   }
 
-  for (const favorite of state.favorites) {
+  for (const favorite of favorites) {
     const card = document.createElement("article");
-    card.className = "favorite-card";
+    card.className = `favorite-card ${favorite.pid === state.selectedFavoritePid ? "selected" : ""}`;
 
     const media = document.createElement("button");
     media.type = "button";
     media.className = "favorite-media";
     media.addEventListener("click", () => {
       if (state.openedAsTab) {
-        chrome.tabs.create({ url: pixivArtworkUrl(favorite.pid) });
+        state.selectedFavoritePid = favorite.pid;
+        renderFavorites();
         return;
       }
       elements.pidInput.value = favorite.pid;
@@ -659,6 +753,9 @@ function renderFavorites() {
     remove.textContent = "X";
     remove.addEventListener("click", async () => {
       state.favorites = state.favorites.filter((item) => item.pid !== favorite.pid);
+      if (state.selectedFavoritePid === favorite.pid) {
+        state.selectedFavoritePid = state.favorites[0]?.pid ?? "";
+      }
       await saveFavorites();
       render();
     });
@@ -666,6 +763,102 @@ function renderFavorites() {
     card.append(media, body, remove);
     elements.favoritesGrid.append(card);
   }
+  renderFavoriteDetail(favorites.find((favorite) => favorite.pid === state.selectedFavoritePid) ?? favorites[0]);
+}
+
+function renderFavoriteDetail(favorite) {
+  elements.favoriteDetail.textContent = "";
+  if (!state.openedAsTab) {
+    return;
+  }
+  if (!favorite) {
+    const empty = document.createElement("div");
+    empty.className = "detail-empty";
+    const title = document.createElement("strong");
+    title.textContent = "选择作品";
+    const body = document.createElement("span");
+    body.textContent = "点击左侧收藏封面后，这里会显示作品详情。";
+    empty.append(title, body);
+    elements.favoriteDetail.append(empty);
+    return;
+  }
+
+  const image = document.createElement("img");
+  image.className = "detail-cover";
+  image.alt = favorite.title;
+  if (favorite.coverDataUrl) {
+    image.src = favorite.coverDataUrl;
+  }
+
+  const title = document.createElement("h2");
+  title.textContent = favorite.title;
+  const author = document.createElement("p");
+  author.className = "detail-author";
+  author.textContent = favorite.authorName || "未知作者";
+
+  const meta = document.createElement("dl");
+  meta.className = "detail-meta";
+  appendDetailMeta(meta, "PID", favorite.pid);
+  appendDetailMeta(meta, "图片数量", `${favorite.pageCount} 张`);
+  appendDetailMeta(meta, "作者 ID", favorite.authorId || "-");
+  appendDetailMeta(meta, "收藏时间", formatDate(favorite.addedAt));
+
+  const actions = document.createElement("div");
+  actions.className = "detail-actions";
+  const open = document.createElement("button");
+  open.type = "button";
+  open.className = "primary-button";
+  open.textContent = "打开 Pixiv";
+  open.addEventListener("click", () => chrome.tabs.create({ url: pixivArtworkUrl(favorite.pid) }));
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "secondary-button";
+  remove.textContent = "取消收藏";
+  remove.addEventListener("click", async () => {
+    state.favorites = state.favorites.filter((item) => item.pid !== favorite.pid);
+    state.selectedFavoritePid = state.favorites[0]?.pid ?? "";
+    await saveFavorites();
+    render();
+  });
+  actions.append(open, remove);
+
+  elements.favoriteDetail.append(image, title, author, meta, actions);
+}
+
+function appendDetailMeta(container, label, value) {
+  const term = document.createElement("dt");
+  term.textContent = label;
+  const detail = document.createElement("dd");
+  detail.textContent = value;
+  container.append(term, detail);
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return date.toLocaleString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function favoriteMatchesQuery(favorite, query) {
+  return [
+    favorite.pid,
+    favorite.title,
+    favorite.authorName,
+    favorite.authorId
+  ]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase().includes(query));
 }
 
 function clearPreviewUrls() {

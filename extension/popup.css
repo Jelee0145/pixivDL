@@ -32,6 +32,7 @@
 }
 
 html {
+  min-height: 100%;
   background: var(--surface);
   scrollbar-width: thin;
   scrollbar-color: oklch(72% 0.035 255 / 0.38) transparent;
@@ -71,12 +72,14 @@ body {
 }
 
 body.tab-view {
-  width: min(1180px, 100vw);
+  width: 100vw;
   min-height: 100vh;
 }
 
 body.favorites-gallery-mode {
-  width: min(1280px, 100vw);
+  width: 100vw;
+  min-width: 0;
+  background: var(--surface);
 }
 
 .favorites-gallery-mode .topbar,
@@ -87,6 +90,8 @@ body.favorites-gallery-mode {
 }
 
 .favorites-gallery-mode .shell {
+  width: 100%;
+  min-height: 100vh;
   padding: clamp(16px, 3vw, 36px);
   background:
     linear-gradient(180deg, oklch(94% 0.055 255), transparent 280px),
@@ -120,14 +125,6 @@ button:disabled {
   gap: var(--space-lg);
   align-items: center;
   margin-bottom: var(--space-md);
-}
-
-.favorites-mode .topbar {
-  grid-template-columns: 1fr;
-}
-
-.favorites-mode .pid-form {
-  display: none;
 }
 
 .brand {
@@ -602,14 +599,56 @@ h2 {
   padding: var(--space-lg);
 }
 
+.gallery-search {
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  min-height: 42px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.gallery-search input {
+  min-width: 0;
+  border: 0;
+  outline: none;
+  padding: 0 11px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+}
+
+.gallery-search input:focus {
+  box-shadow: 0 0 0 3px var(--blue-soft);
+}
+
+.favorites-layout {
+  min-width: 0;
+}
+
 .favorites-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--space-md);
 }
 
+.favorites-gallery-mode .favorites {
+  min-height: calc(100vh - 72px);
+  background: oklch(98.5% 0.008 255 / 0.94);
+}
+
+.favorites-gallery-mode .favorites-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-lg);
+  align-items: start;
+}
+
 .tab-view .favorites-grid {
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: var(--space-lg);
 }
 
@@ -623,6 +662,11 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--paper);
+}
+
+.favorite-card.selected {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-soft);
 }
 
 .tab-view .favorite-card {
@@ -701,6 +745,88 @@ h2 {
   color: var(--blue-deep);
 }
 
+.favorite-detail {
+  position: sticky;
+  top: var(--space-lg);
+  min-height: 420px;
+  padding: var(--space-md);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.detail-empty {
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: oklch(99% 0.006 255);
+}
+
+.detail-empty strong {
+  color: var(--ink);
+}
+
+.detail-cover {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  display: block;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--surface-blue);
+}
+
+.favorite-detail h2 {
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-xs);
+  font-size: 17px;
+  line-height: 1.26;
+  word-break: break-word;
+}
+
+.detail-author {
+  margin-bottom: var(--space-md);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.detail-meta {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+  padding: var(--space-md) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-meta dt,
+.detail-meta dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.detail-meta dt {
+  color: var(--muted);
+}
+
+.detail-meta dd {
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.detail-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-sm);
+}
+
 @media (max-width: 720px) {
   body {
     width: 420px;
@@ -713,5 +839,15 @@ h2 {
 
   .image-grid {
     max-height: none;
+  }
+}
+
+@media (max-width: 940px) {
+  .favorites-gallery-mode .favorites-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .favorite-detail {
+    position: static;
   }
 }
