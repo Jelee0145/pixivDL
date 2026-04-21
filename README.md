@@ -18,13 +18,28 @@ PixivDL Browser 是一款轻量的 Pixiv 浏览器扩展：复用当前浏览器
 
 ## 安装
 
-当前仓库提交的是扩展源码，不包含打包产物。推荐直接加载源码目录：
+### 从发布版安装
+
+推荐普通用户从 [GitHub Releases](https://github.com/Jelee0145/pixivDL/releases/latest) 下载最新版 `PixivDL-Browser-*.zip`，解压后加载解压出来的扩展目录。
+
+安装步骤：
+
+1. 下载并解压发布包。
+2. 打开 Chrome 或 Edge。
+3. 进入 `chrome://extensions` 或 `edge://extensions`。
+4. 打开“开发者模式”。
+5. 点击“加载已解压的扩展程序”。
+6. 选择解压后的 `PixivDL-Browser-*` 目录。
+
+### 从源码安装
+
+当前仓库提交的是扩展源码，不提交 `dist/` 打包产物。开发或本地调试时，可以直接加载源码目录：
 
 ```text
 D:\pixivdl\extension
 ```
 
-安装步骤：
+源码安装步骤：
 
 1. 打开 Chrome 或 Edge。
 2. 进入 `chrome://extensions` 或 `edge://extensions`。
@@ -75,6 +90,7 @@ extension/
 - 图片资源来自 Pixiv 返回的页面 URL，扩展会缓存预览图和原图 Blob。
 - ZIP 下载在浏览器端生成，不依赖本地服务。
 - 收藏图库复用扩展页面，通过新标签页提供更宽的浏览空间。
+- `dist/` 是发布产物目录，不纳入 Git；发布包通过 GitHub Releases 分发。
 
 ## 限制
 
