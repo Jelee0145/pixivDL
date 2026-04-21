@@ -1,6 +1,6 @@
-# PixivDL Browser v0.4.2
+# PixivDL Browser v0.4.6
 
-PixivDL Browser v0.4.2 是项目转为浏览器扩展后的发布版本。它把 Pixiv 作品获取、页面预览、批量选择、ZIP/原图下载和收藏图库集中在 Chrome/Edge 扩展中，不再需要本地后端，也不需要手动导入或保存 Pixiv Cookie。
+PixivDL Browser v0.4.6 是项目转为浏览器扩展后的发布版本。它把 Pixiv 作品获取、页面预览、批量选择、ZIP/原图下载和收藏图库集中在 Chrome/Edge 扩展中，不再需要本地后端，也不需要手动导入或保存 Pixiv Cookie。
 
 ## 适合谁
 
@@ -18,26 +18,26 @@ PixivDL Browser v0.4.2 是项目转为浏览器扩展后的发布版本。它把
 - 支持本地收藏夹和新标签页收藏图库。
 - 使用浏览器当前 Pixiv 登录态，不导入、不保存 Pixiv Cookie。
 - 使用 IndexedDB 缓存作品信息、预览图和下载过的原图。
-- Pixiv 未登录、网络不可达或请求被拒绝时，显示失败恢复面板。
-- 失败恢复面板提供登录 Pixiv、打开原作品页和外部检索 PID 三个入口。
+- 新增扩展图标资源，覆盖 16/32/48/128 像素尺寸。
+- Pixiv 未登录、网络不可达或请求被拒绝时，空状态区会提供 Pixiv 原作品页入口。
+- 优化滚动条样式，让弹窗和图片网格在内容较多时更安静。
 
 ## 安装
 
-1. 下载 `PixivDL-Browser-0.4.2.zip`。
+1. 下载 `PixivDL-Browser-0.4.6.zip`。
 2. 解压 ZIP 文件。
 3. 打开 Chrome 或 Edge 的扩展管理页。
 4. 开启“开发者模式”。
 5. 点击“加载已解压的扩展程序”。
-6. 选择解压后的 `PixivDL-Browser-0.4.2` 目录。
+6. 选择解压后的 `PixivDL-Browser-0.4.6` 目录。
 
 ## 发布文件
 
-- `PixivDL-Browser-0.4.2.zip`
+- `PixivDL-Browser-0.4.6.zip`
 - SHA256: `由 GitHub Actions 发布流程生成`
 
 ## 限制
 
 - 只支持 Pixiv 静态插画和漫画图片，不支持 ugoira 动图。
 - Pixiv 网页 AJAX 接口不是公开稳定 API，Pixiv 改站后可能需要维护。
-- 外部检索入口只用于手动查找 PID，不作为自动下载来源。
 - 只应下载当前 Pixiv 账号有权限访问的内容，并遵守 Pixiv 及作者的使用规则。

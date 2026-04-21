@@ -31,24 +31,14 @@
 
       <p id="notice" class="notice" hidden></p>
 
-      <section id="fallbackPanel" class="fallback-panel" hidden>
-        <div>
-          <p class="eyebrow">Fallback</p>
-          <h2>无法直接读取 Pixiv</h2>
-          <p id="fallbackMessage">当前登录态或网络不可用，可以从下面入口继续处理。</p>
-        </div>
-        <div class="fallback-actions">
-          <button id="loginPixivButton" class="secondary-button" type="button">登录 Pixiv</button>
-          <button id="fallbackPixivButton" class="secondary-button" type="button">打开原页</button>
-          <button id="fallbackSearchButton" class="secondary-button" type="button">外部检索</button>
-        </div>
-      </section>
-
       <section id="workspaceView" class="workspace">
         <aside class="summary">
           <div id="emptyState" class="empty-state">
-            <strong>输入 PID 获取作品</strong>
-            <span>登录 Pixiv 后可预览、选择并下载图片。</span>
+            <strong id="emptyTitle">输入 PID 获取作品</strong>
+            <span id="emptyBody">获取成功后可预览、选择并下载图片。</span>
+            <button id="emptyPixivButton" class="secondary-button empty-action" type="button" hidden>
+              前往 Pixiv 查看
+            </button>
           </div>
           <div id="workSummary" hidden>
             <div class="cover-frame">

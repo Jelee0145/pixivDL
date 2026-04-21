@@ -35,6 +35,7 @@ jobs:
           cp extension/popup.js "$package_dir/"
           cp extension/README.md "$package_dir/"
           cp extension/rules.json "$package_dir/"
+          cp -R extension/icons "$package_dir/"
 
           (
             cd "$package_dir"

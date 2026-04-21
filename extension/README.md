@@ -13,7 +13,7 @@
 5. 选择最新版目录：
 
 ```text
-D:\pixivdl\dist\PixivDL-Browser-0.4.2
+D:\pixivdl\dist\PixivDL-Browser-0.4.6
 ```
 
 开发调试时也可以直接加载源码目录 `D:\pixivdl\extension`。
@@ -28,7 +28,8 @@ D:\pixivdl\dist\PixivDL-Browser-0.4.2
 
 下载由浏览器直接处理，文件会进入浏览器默认下载目录下的 `PixivDL` 子目录。
 
-如果当前浏览器没有可用的 Pixiv 登录态，插件会显示失败恢复面板：登录 Pixiv、打开原 Pixiv 作品页、外部检索 PID。外部检索只打开新标签页，不会自动抓取或下载第三方来源。
+如果接口获取失败，空状态区会显示“前往 Pixiv 查看”，用于打开当前 PID 的 Pixiv 原作品页。
+扩展包含 16/32/48/128 像素图标，用于浏览器工具栏、扩展管理页和系统界面展示。
 
 - `ZIP`：把选中的图片打包成一个 ZIP。
 - `文件`：逐张发起浏览器下载，多图会保存到 `PixivDL/{pid}_{标题}/` 下。
@@ -47,4 +48,3 @@ D:\pixivdl\dist\PixivDL-Browser-0.4.2
 - 只支持静态插画/漫画图片，不支持 ugoira 动图。
 - 如果 Pixiv 改动网页 AJAX 接口，需要维护扩展脚本。
 - 如果浏览器或 Pixiv CDN 拒绝图片防盗链请求，预览或下载可能失败；这种情况会在界面提示错误。
-- 外部检索入口只用于手动查找 PID，不作为自动下载来源。

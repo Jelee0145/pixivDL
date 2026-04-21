@@ -33,6 +33,8 @@
 
 html {
   background: var(--surface);
+  scrollbar-width: thin;
+  scrollbar-color: oklch(72% 0.035 255 / 0.38) transparent;
 }
 
 body {
@@ -42,6 +44,30 @@ body {
   margin: 0;
   overflow-x: hidden;
   background: var(--surface);
+  scrollbar-width: thin;
+  scrollbar-color: oklch(72% 0.035 255 / 0.38) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: transparent;
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background: oklch(72% 0.035 255 / 0.38);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(58% 0.07 255 / 0.55);
 }
 
 body.tab-view {
@@ -56,7 +82,6 @@ body.favorites-gallery-mode {
 .favorites-gallery-mode .topbar,
 .favorites-gallery-mode .tabs,
 .favorites-gallery-mode .notice,
-.favorites-gallery-mode .fallback-panel,
 .favorites-gallery-mode #workspaceView {
   display: none !important;
 }
@@ -270,35 +295,6 @@ h2 {
   line-height: 1.45;
 }
 
-.fallback-panel {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--space-md);
-  align-items: center;
-  margin-bottom: var(--space-md);
-  padding: var(--space-md);
-  border: 1px solid oklch(83% 0.075 255);
-  border-radius: 8px;
-  background: oklch(97% 0.028 255);
-}
-
-.fallback-panel h2 {
-  margin-bottom: var(--space-xs);
-}
-
-.fallback-panel p:not(.eyebrow) {
-  margin-bottom: 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.48;
-}
-
-.fallback-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(82px, 1fr));
-  gap: var(--space-sm);
-}
-
 .workspace {
   display: grid;
   grid-template-columns: 218px minmax(280px, 1fr) 212px;
@@ -443,12 +439,16 @@ h2 {
 }
 
 .image-grid::-webkit-scrollbar {
-  width: 8px;
+  width: 5px;
 }
 
 .image-grid::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: oklch(78% 0.035 255);
+  background: transparent;
+}
+
+.image-grid:hover::-webkit-scrollbar-thumb {
+  background: oklch(72% 0.035 255 / 0.38);
 }
 
 .image-tile {
@@ -593,6 +593,11 @@ h2 {
   background: oklch(99% 0.006 255);
 }
 
+.empty-action {
+  margin-top: var(--space-sm);
+  min-width: 150px;
+}
+
 .favorites {
   padding: var(--space-lg);
 }
@@ -702,12 +707,7 @@ h2 {
   }
 
   .topbar,
-  .workspace,
-  .fallback-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .fallback-actions {
+  .workspace {
     grid-template-columns: 1fr;
   }
 
