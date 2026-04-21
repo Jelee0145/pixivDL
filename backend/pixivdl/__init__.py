@@ -1,2 +1,0 @@
-"""PixivDL backend package."""
-

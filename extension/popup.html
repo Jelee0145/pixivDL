@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PixivDL Browser</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">P</span>
+          <div>
+            <p class="eyebrow">PixivDL Browser</p>
+            <h1>图片下载工作台</h1>
+          </div>
+        </div>
+        <form id="pidForm" class="pid-form">
+          <input id="pidInput" inputmode="numeric" autocomplete="off" placeholder="输入作品 PID" />
+          <button id="fetchButton" type="submit">获取</button>
+        </form>
+      </header>
+
+      <nav class="tabs" aria-label="视图">
+        <div class="tab-group">
+          <button id="workspaceTab" class="active" type="button">工作台</button>
+          <button id="favoritesTab" type="button">收藏夹</button>
+        </div>
+      </nav>
+
+      <p id="notice" class="notice" hidden></p>
+
+      <section id="workspaceView" class="workspace">
+        <aside class="summary">
+          <div id="emptyState" class="empty-state">
+            <strong>输入 PID 获取作品</strong>
+            <span>登录 Pixiv 后可预览、选择并下载图片。</span>
+          </div>
+          <div id="workSummary" hidden>
+            <div class="cover-frame">
+              <img id="coverImage" alt="" />
+            </div>
+            <div class="work-copy">
+              <h2 id="workTitle"></h2>
+              <p id="workAuthor"></p>
+            </div>
+            <div class="meta-row">
+              <span id="workPid"></span>
+              <span id="workPages"></span>
+            </div>
+            <div class="work-actions" aria-label="作品操作">
+              <button id="favoriteButton" class="favorite-button" type="button">收藏</button>
+              <button id="openPixivButton" class="open-pixiv-button" type="button">打开 Pixiv</button>
+            </div>
+          </div>
+        </aside>
+
+        <section class="images">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Images</p>
+              <h2>图片选择</h2>
+            </div>
+            <button id="selectAllButton" class="secondary-button" type="button" disabled>全选</button>
+          </div>
+          <div id="imageGrid" class="image-grid"></div>
+        </section>
+
+        <aside class="download">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Download</p>
+              <h2>浏览器下载</h2>
+            </div>
+          </div>
+          <p class="hint">选择页面后下载；ZIP 适合多图归档，文件模式逐张保存。</p>
+          <div class="segmented">
+            <button id="zipMode" class="active" type="button">ZIP</button>
+            <button id="fileMode" type="button">文件</button>
+          </div>
+          <button id="downloadButton" class="primary-button" type="button" disabled>下载 0 张</button>
+          <div id="progress" class="progress" hidden>
+            <span id="progressText"></span>
+            <div><i id="progressBar"></i></div>
+          </div>
+        </aside>
+      </section>
+
+      <section id="favoritesView" class="favorites" hidden>
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Favorites</p>
+            <h2 id="favoritesTitle">本地收藏夹</h2>
+          </div>
+          <button id="openFavoritesTabButton" class="secondary-button" type="button">新标签浏览</button>
+        </div>
+        <div id="favoritesGrid" class="favorites-grid"></div>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

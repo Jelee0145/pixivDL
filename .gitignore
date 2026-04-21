@@ -1,11 +1,12 @@
 .venv/
 .pixivdl-data/
+.runtime/
+dist/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
 node_modules/
-frontend/dist/
-frontend/.vite/
 .env
+Thumbs.db

@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "PixivDL Browser",
+  "version": "0.4.1",
+  "description": "Fetch Pixiv artwork pages by PID and download selected images from the browser.",
+  "action": {
+    "default_title": "PixivDL",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "popup.html",
+    "open_in_tab": true
+  },
+  "permissions": ["downloads", "storage", "unlimitedStorage", "declarativeNetRequest"],
+  "host_permissions": ["https://www.pixiv.net/*", "https://i.pximg.net/*"],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "pixiv_image_headers",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  }
+}
