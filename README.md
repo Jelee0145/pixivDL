@@ -1,12 +1,24 @@
 # PixivDL Browser
 
-PixivDL Browser 是一个 Chrome/Edge 浏览器扩展，用于在已登录 Pixiv 的浏览器里按 PID 获取作品图片、预览、选择并下载。
+PixivDL Browser 是一款轻量的 Pixiv 浏览器扩展：复用当前浏览器登录态，通过 PID 获取作品页，支持预览、多页选择、ZIP 或原图下载、收藏图库与本地缓存；无需本地后端，也不导入或保存 Pixiv Cookie。
 
-当前项目已经只保留扩展形态，不再包含旧的 FastAPI 后端、React 本地 Web 前端、Python 虚拟环境或一键启动脚本。
+它适合已经在 Chrome 或 Edge 中登录 Pixiv 的用户，用最短路径完成“输入 PID、检查图片、选择页面、保存作品”的本地工作流。
+
+## 特性
+
+- 按 Pixiv PID 获取插画和漫画作品信息。
+- 展示标题、作者、页数、封面和每页图片预览。
+- 支持单页、多页选择，以及一键全选、清空选择。
+- 支持 ZIP 打包下载或逐张原图下载。
+- 支持本地收藏夹，收藏卡片包含封面、标题、作者和页数。
+- 支持在新标签页打开收藏图库，适合集中浏览已收藏作品。
+- 使用浏览器当前 Pixiv 登录态，不需要复制、导入或保存 Cookie。
+- 使用 IndexedDB 缓存作品信息、预览图和下载过的原图，降低重复请求。
+- 使用 Manifest V3 和 `declarativeNetRequest` 为 Pixiv 图片请求补充必要的 Referer。
 
 ## 安装
 
-推荐直接加载源码扩展目录：
+当前仓库提交的是扩展源码，不包含打包产物。推荐直接加载源码目录：
 
 ```text
 D:\pixivdl\extension
@@ -16,48 +28,61 @@ D:\pixivdl\extension
 
 1. 打开 Chrome 或 Edge。
 2. 进入 `chrome://extensions` 或 `edge://extensions`。
-3. 打开开发者模式。
+3. 打开“开发者模式”。
 4. 点击“加载已解压的扩展程序”。
 5. 选择 `D:\pixivdl\extension`。
 
-源码目录在：
-
-```text
-D:\pixivdl\extension
-```
-
-每次修改源码后，在扩展管理页点击刷新按钮重新加载。
+修改源码后，在扩展管理页点击刷新按钮即可重新加载。
 
 ## 使用
 
 1. 先在同一个浏览器登录 `https://www.pixiv.net/`。
 2. 点击浏览器工具栏里的 PixivDL 图标。
 3. 输入作品 PID，点击“获取”。
-4. 勾选需要下载的图片。
+4. 勾选需要下载的图片页面。
 5. 选择 `ZIP` 或 `文件` 模式并下载。
 
-下载由浏览器直接处理，会进入浏览器默认下载目录下的 `PixivDL` 子目录。
+下载由浏览器直接处理，默认保存到浏览器下载目录下的 `PixivDL` 子目录。
 
-## 功能
+下载模式：
 
-- 按 Pixiv PID 获取插画/漫画作品信息。
-- 显示作品标题、作者、页数和图片预览。
-- 支持单页或多页选择。
-- 支持 ZIP 打包下载或逐张文件下载。
-- 支持本地收藏夹，收藏卡片显示封面和图片数量。
-- 支持在新标签页浏览收藏图库。
-- 使用浏览器当前 Pixiv 登录态，不导入、不保存 Pixiv Cookie。
-- 查询过的作品信息和图片缓存保存在扩展自己的浏览器本地存储中。
+- `ZIP`：把选中的图片打包成一个压缩包。
+- `文件`：逐张发起浏览器下载，多页作品会保存到 `PixivDL/{pid}_{标题}/` 下。
 
-## 保留目录
+## 数据与隐私
+
+- 扩展不读取、不导入、不持久化 Pixiv Cookie。
+- Pixiv 登录态由浏览器对 `pixiv.net` 的正常 Cookie 机制自动携带。
+- 收藏夹保存在浏览器扩展本地存储 `chrome.storage.local`。
+- 收藏数据只包含 PID、标题、作者、图片数量和封面缩略图。
+- 查询过的作品信息和图片缓存保存在扩展 IndexedDB 中。
+- 扩展声明 `unlimitedStorage`，用于降低大图缓存被浏览器配额清理的概率。
+
+## 目录结构
 
 ```text
-D:\pixivdl\extension
-D:\pixivdl\.impeccable.md
+extension/
+  manifest.json   # Chrome/Edge Manifest V3 配置
+  popup.html      # 扩展弹窗和收藏图库页面
+  popup.css       # 界面样式
+  popup.js        # Pixiv 请求、缓存、收藏和下载逻辑
+  rules.json      # Pixiv 图片请求 Referer 规则
 ```
+
+## 技术说明
+
+- Pixiv 数据来自 `https://www.pixiv.net/ajax/illust/{pid}` 和对应 pages 接口。
+- 图片资源来自 Pixiv 返回的页面 URL，扩展会缓存预览图和原图 Blob。
+- ZIP 下载在浏览器端生成，不依赖本地服务。
+- 收藏图库复用扩展页面，通过新标签页提供更宽的浏览空间。
 
 ## 限制
 
-- 只支持 Pixiv 静态插画/漫画图片，不支持 ugoira 动图。
+- 只支持 Pixiv 静态插画和漫画图片，不支持 ugoira 动图。
 - Pixiv 网页 AJAX 接口不是公开稳定 API，Pixiv 改站后可能需要维护。
-- 只应下载当前 Pixiv 账号有权限访问的内容。
+- 如果浏览器或 Pixiv CDN 拒绝图片防盗链请求，预览或下载可能失败。
+- 只应下载当前 Pixiv 账号有权限访问的内容，并遵守 Pixiv 及作者的使用规则。
+
+## 项目简介
+
+面向 Pixiv 重度浏览和本地整理场景的浏览器扩展。PixivDL Browser 把作品抓取、页面预览、批量选择、下载打包和收藏图库放进一个轻量弹窗里，让用户在不搭建后端、不处理 Cookie 的前提下，更安静、更直接地保存自己有权限访问的 Pixiv 图片。
