@@ -422,6 +422,24 @@ h2 {
   margin-bottom: var(--space-md);
 }
 
+.favorites-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.favorites-title-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.favorites-title-line h2 {
+  margin-bottom: 0;
+}
+
 .images {
   padding: var(--space-md);
 }
@@ -541,6 +559,64 @@ h2 {
   color: var(--paper);
 }
 
+.settings-form {
+  display: grid;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.field,
+.proxy-toggle {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.field input,
+.proxy-fields input,
+.proxy-fields select {
+  min-width: 0;
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: none;
+  padding: 0 10px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.field input:focus,
+.proxy-fields input:focus,
+.proxy-fields select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-soft);
+}
+
+.proxy-toggle {
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+}
+
+.proxy-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--blue);
+}
+
+.proxy-fields {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) 64px;
+  gap: var(--space-xs);
+}
+
+.settings-form .secondary-button {
+  width: 100%;
+}
+
 .primary-button {
   width: 100%;
   min-height: 42px;
@@ -625,6 +701,17 @@ h2 {
   box-shadow: 0 0 0 3px var(--blue-soft);
 }
 
+.favorites-status {
+  margin: 0 0 var(--space-md);
+  padding: 9px 11px;
+  border: 1px solid oklch(84% 0.06 255);
+  border-radius: 8px;
+  background: var(--surface-blue);
+  color: var(--blue-deep);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .favorites-layout {
   min-width: 0;
 }
@@ -648,7 +735,7 @@ h2 {
 }
 
 .tab-view .favorites-grid {
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--space-lg);
 }
 
@@ -658,7 +745,7 @@ h2 {
   grid-template-columns: 86px 1fr;
   gap: var(--space-md);
   align-items: center;
-  padding: var(--space-sm) 44px var(--space-sm) var(--space-sm);
+  padding: var(--space-sm) 80px var(--space-sm) var(--space-sm);
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--paper);
@@ -671,7 +758,7 @@ h2 {
 
 .tab-view .favorite-card {
   grid-template-columns: 128px 1fr;
-  padding: var(--space-md);
+  padding: var(--space-md) 88px var(--space-md) var(--space-md);
 }
 
 .favorite-media {
@@ -728,12 +815,19 @@ h2 {
   font-size: 12px;
 }
 
-.icon-button {
+.card-actions {
   position: absolute;
   right: var(--space-sm);
   top: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.icon-button {
   width: 32px;
   height: 32px;
+  min-height: 32px;
   padding: 0;
   border-color: var(--line);
   background: var(--surface);
@@ -825,6 +919,67 @@ h2 {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-sm);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--space-xl);
+  background: oklch(24% 0.04 255 / 0.34);
+}
+
+.download-choice {
+  position: relative;
+  width: min(360px, 100%);
+  padding: var(--space-xl);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: 0 24px 64px oklch(22% 0.04 255 / 0.22);
+}
+
+.download-choice h2 {
+  margin-bottom: var(--space-sm);
+  font-size: 20px;
+}
+
+.download-choice-meta {
+  margin-bottom: var(--space-lg);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.download-choice-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.download-choice-actions .secondary-button {
+  min-height: 42px;
+}
+
+.modal-close {
+  position: absolute;
+  right: var(--space-md);
+  top: var(--space-md);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.modal-close:hover {
+  background: var(--blue-soft);
+  color: var(--blue-deep);
 }
 
 @media (max-width: 720px) {

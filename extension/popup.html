@@ -82,6 +82,27 @@
             <button id="zipMode" class="active" type="button">ZIP</button>
             <button id="fileMode" type="button">文件</button>
           </div>
+          <form id="settingsForm" class="settings-form">
+            <label class="field">
+              <span>保存目录</span>
+              <input id="downloadDirectoryInput" autocomplete="off" placeholder="PixivDL" />
+            </label>
+            <label class="proxy-toggle">
+              <input id="proxyEnabledInput" type="checkbox" />
+              <span>本地代理</span>
+            </label>
+            <div class="proxy-fields">
+              <select id="proxySchemeInput" aria-label="代理协议">
+                <option value="http">HTTP</option>
+                <option value="https">HTTPS</option>
+                <option value="socks4">SOCKS4</option>
+                <option value="socks5">SOCKS5</option>
+              </select>
+              <input id="proxyHostInput" autocomplete="off" placeholder="127.0.0.1" />
+              <input id="proxyPortInput" inputmode="numeric" autocomplete="off" placeholder="7890" />
+            </div>
+            <button id="saveSettingsButton" class="secondary-button" type="submit">保存设置</button>
+          </form>
           <button id="downloadButton" class="primary-button" type="button" disabled>下载 0 张</button>
           <div id="progress" class="progress" hidden>
             <span id="progressText"></span>
@@ -94,7 +115,14 @@
         <div class="section-head">
           <div>
             <p class="eyebrow">Favorites</p>
-            <h2 id="favoritesTitle">本地收藏夹</h2>
+            <div class="favorites-title-line">
+              <h2 id="favoritesTitle">本地收藏夹</h2>
+              <div class="favorites-actions">
+                <button id="importFavoritesButton" class="secondary-button" type="button" hidden>导入</button>
+                <button id="exportFavoritesButton" class="secondary-button" type="button" hidden>导出</button>
+                <input id="importFavoritesInput" type="file" accept=".json,application/json" hidden />
+              </div>
+            </div>
           </div>
           <button id="openFavoritesTabButton" class="secondary-button" type="button">新标签浏览</button>
         </div>
@@ -102,11 +130,25 @@
           <input id="gallerySearchInput" autocomplete="off" placeholder="搜索收藏标题 / 作者 / PID" />
           <button id="gallerySearchButton" class="secondary-button" type="submit">搜索</button>
         </form>
+        <p id="favoritesStatus" class="favorites-status" hidden></p>
         <div class="favorites-layout">
           <div id="favoritesGrid" class="favorites-grid"></div>
           <aside id="favoriteDetail" class="favorite-detail" aria-label="作品详情"></aside>
         </div>
       </section>
+
+      <div id="downloadChoiceModal" class="modal-backdrop" hidden>
+        <section class="download-choice" role="dialog" aria-modal="true" aria-labelledby="downloadChoiceTitle">
+          <button id="closeDownloadChoiceButton" class="modal-close" type="button" aria-label="关闭">X</button>
+          <p class="eyebrow">Download</p>
+          <h2 id="downloadChoiceTitle">选择下载方式</h2>
+          <p id="downloadChoiceMeta" class="download-choice-meta"></p>
+          <div class="download-choice-actions">
+            <button id="favoriteZipDownloadButton" class="primary-button" type="button">下载 ZIP</button>
+            <button id="favoriteFilesDownloadButton" class="secondary-button" type="button">下载文件</button>
+          </div>
+        </section>
+      </div>
     </main>
     <script src="popup.js"></script>
   </body>
