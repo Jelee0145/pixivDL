@@ -53,8 +53,13 @@ const elements = {
   workAuthor: document.querySelector("#workAuthor"),
   workPid: document.querySelector("#workPid"),
   workPages: document.querySelector("#workPages"),
+  workUploadTime: document.querySelector("#workUploadTime"),
+  workFavoriteState: document.querySelector("#workFavoriteState"),
   favoriteButton: document.querySelector("#favoriteButton"),
   openPixivButton: document.querySelector("#openPixivButton"),
+  focusSettingsButton: document.querySelector("#focusSettingsButton"),
+  openPixivHomeButton: document.querySelector("#openPixivHomeButton"),
+  openWorkspaceTabButton: document.querySelector("#openWorkspaceTabButton"),
   openFavoritesTabButton: document.querySelector("#openFavoritesTabButton"),
   importFavoritesButton: document.querySelector("#importFavoritesButton"),
   exportFavoritesButton: document.querySelector("#exportFavoritesButton"),
@@ -66,17 +71,21 @@ const elements = {
   gallerySearchButton: document.querySelector("#gallerySearchButton"),
   favoriteDetail: document.querySelector("#favoriteDetail"),
   selectAllButton: document.querySelector("#selectAllButton"),
+  selectedCountLabel: document.querySelector("#selectedCountLabel"),
   imageGrid: document.querySelector("#imageGrid"),
   zipMode: document.querySelector("#zipMode"),
   fileMode: document.querySelector("#fileMode"),
   settingsForm: document.querySelector("#settingsForm"),
   downloadDirectoryInput: document.querySelector("#downloadDirectoryInput"),
+  browseDownloadDirectoryButton: document.querySelector("#browseDownloadDirectoryButton"),
+  downloadDirectoryHint: document.querySelector("#downloadDirectoryHint"),
   proxyEnabledInput: document.querySelector("#proxyEnabledInput"),
   proxySchemeInput: document.querySelector("#proxySchemeInput"),
   proxyHostInput: document.querySelector("#proxyHostInput"),
   proxyPortInput: document.querySelector("#proxyPortInput"),
   saveSettingsButton: document.querySelector("#saveSettingsButton"),
   downloadButton: document.querySelector("#downloadButton"),
+  downloadMeta: document.querySelector("#downloadMeta"),
   progress: document.querySelector("#progress"),
   progressText: document.querySelector("#progressText"),
   progressBar: document.querySelector("#progressBar"),
@@ -95,17 +104,26 @@ if (document.readyState === "loading") {
 }
 
 async function init() {
+  const params = new URLSearchParams(location.search);
+  const requestedView = params.get("view");
+  const requestedPid = params.get("pid") ?? "";
   await Promise.all([loadFavorites(), loadSettings()]);
-  state.openedAsTab = new URLSearchParams(location.search).get("view") === "favorites";
-  state.view = state.openedAsTab ? "favorites" : "workspace";
+  state.openedAsTab = requestedView === "favorites" || requestedView === "workspace";
+  state.view = requestedView === "favorites" ? "favorites" : "workspace";
+  state.workspaceInput = /^\d+$/.test(requestedPid) ? requestedPid : "";
   document.body.classList.toggle("tab-view", state.openedAsTab);
-  document.body.classList.toggle("favorites-gallery-mode", state.openedAsTab);
+  document.body.classList.toggle("favorites-gallery-mode", state.openedAsTab && state.view === "favorites");
+  document.body.classList.toggle("workspace-tab-mode", state.openedAsTab && state.view === "workspace");
   bindEvents();
   render();
   setTab(state.view);
   syncSettingsForm();
   if (state.settings.proxyEnabled) {
     await applyProxySettings().catch((error) => showNotice(error.message));
+  }
+  if (state.view === "workspace" && /^\d+$/.test(state.workspaceInput)) {
+    elements.pidInput.value = state.workspaceInput;
+    await loadWork(state.workspaceInput);
   }
 }
 
@@ -150,6 +168,14 @@ function bindEvents() {
 
   elements.workspaceTab.addEventListener("click", () => setTab("workspace"));
   elements.favoritesTab.addEventListener("click", () => setTab("favorites"));
+  elements.focusSettingsButton.addEventListener("click", () => {
+    setTab("workspace");
+    elements.downloadDirectoryInput.focus();
+  });
+  elements.openPixivHomeButton.addEventListener("click", () => {
+    chrome.tabs.create({ url: PIXIV_ORIGIN });
+  });
+  elements.openWorkspaceTabButton.addEventListener("click", openWorkspaceInTab);
   elements.openFavoritesTabButton.addEventListener("click", openFavoritesInTab);
   elements.importFavoritesButton.addEventListener("click", () => elements.importFavoritesInput.click());
   elements.exportFavoritesButton.addEventListener("click", exportFavorites);
@@ -160,6 +186,8 @@ function bindEvents() {
   elements.emptyPixivButton.addEventListener("click", openFailedWorkOnPixiv);
   elements.zipMode.addEventListener("click", () => setMode("zip"));
   elements.fileMode.addEventListener("click", () => setMode("files"));
+  elements.downloadDirectoryInput.addEventListener("input", updateDownloadDirectoryDisplay);
+  elements.browseDownloadDirectoryButton.addEventListener("click", openDownloadDirectory);
   elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
   elements.downloadButton.addEventListener("click", downloadSelected);
   elements.closeDownloadChoiceButton.addEventListener("click", closeDownloadChoice);
@@ -280,6 +308,7 @@ function normalizeWork(pid, metadata, pages) {
     title: String(metadata.title ?? `pixiv_${pid}`),
     authorId: String(metadata.userId ?? ""),
     authorName: String(metadata.userName ?? "未知作者"),
+    uploadedAt: String(metadata.uploadDate ?? metadata.createDate ?? metadata.create_date ?? ""),
     pageCount: normalizedPages.length,
     pages: normalizedPages
   };
@@ -595,7 +624,7 @@ async function saveSettingsFromForm(event) {
     await storageSet({ [SETTINGS_KEY]: state.settings });
     await applyProxySettings();
     syncSettingsForm();
-    showNotice("设置已保存");
+    showNotice(`设置已保存：${formatDownloadDirectoryPath(state.settings.downloadDirectory)}`);
   } catch (error) {
     showNotice(error instanceof Error ? error.message : "设置保存失败");
   }
@@ -621,7 +650,8 @@ function normalizeSettings(value) {
 }
 
 function syncSettingsForm() {
-  elements.downloadDirectoryInput.value = state.settings.downloadDirectory;
+  elements.downloadDirectoryInput.value = formatDownloadDirectoryPath(state.settings.downloadDirectory);
+  updateDownloadDirectoryDisplay();
   elements.proxyEnabledInput.checked = state.settings.proxyEnabled;
   elements.proxySchemeInput.value = state.settings.proxyScheme;
   elements.proxyHostInput.value = state.settings.proxyHost;
@@ -632,8 +662,30 @@ function getDownloadDirectory() {
   return normalizeDownloadDirectory(state.settings.downloadDirectory);
 }
 
+function updateDownloadDirectoryDisplay() {
+  const directory = normalizeDownloadDirectory(elements.downloadDirectoryInput.value);
+  elements.downloadDirectoryHint.textContent = `实际保存：${formatDownloadDirectoryPath(directory)}`;
+  elements.downloadDirectoryInput.title = "保存目录是浏览器下载目录下的相对路径";
+}
+
+function formatDownloadDirectoryPath(value) {
+  const directory = normalizeDownloadDirectory(value).replace(/\//g, "\\");
+  return `浏览器下载目录\\${directory}`;
+}
+
+function openDownloadDirectory() {
+  if (chrome.downloads?.showDefaultFolder) {
+    chrome.downloads.showDefaultFolder();
+    showNotice("已打开浏览器默认下载目录；保存子目录会在下载时自动创建。");
+    return;
+  }
+  chrome.tabs.create({ url: "chrome://downloads/" });
+}
+
 function normalizeDownloadDirectory(value) {
-  const raw = String(value ?? "").trim();
+  const raw = String(value ?? "")
+    .trim()
+    .replace(/^浏览器下载目录[\\/]+/, "");
   if (!raw) {
     return DEFAULT_SETTINGS.downloadDirectory;
   }
@@ -811,6 +863,8 @@ function setTab(tab) {
   rememberCurrentInput();
   const showWorkspace = tab === "workspace";
   state.view = showWorkspace ? "workspace" : "favorites";
+  document.body.classList.toggle("workspace-tab-mode", state.openedAsTab && showWorkspace);
+  document.body.classList.toggle("favorites-gallery-mode", state.openedAsTab && !showWorkspace);
   elements.workspaceView.hidden = !showWorkspace;
   elements.favoritesView.hidden = showWorkspace;
   elements.workspaceView.classList.toggle("view-active", showWorkspace);
@@ -836,7 +890,7 @@ function rememberCurrentInput() {
 }
 
 function configureSearchMode() {
-  if (state.openedAsTab) {
+  if (state.openedAsTab && state.view === "favorites") {
     return;
   }
   if (state.view === "favorites") {
@@ -850,9 +904,29 @@ function configureSearchMode() {
   }
 }
 
+function openWorkspaceInTab() {
+  rememberCurrentInput();
+  const pid = state.work?.pid ?? state.workspaceInput.trim();
+  const url = new URL(chrome.runtime.getURL("popup.html"));
+  url.searchParams.set("view", "workspace");
+  if (/^\d+$/.test(pid)) {
+    url.searchParams.set("pid", pid);
+  }
+  chrome.tabs.create({ url: url.toString() });
+}
+
 function openFavoritesInTab() {
   const url = chrome.runtime.getURL("popup.html?view=favorites");
   chrome.tabs.create({ url });
+}
+
+function openFavoriteInWorkspace(favorite) {
+  if (state.openedAsTab) {
+    state.openedAsTab = false;
+    document.body.classList.remove("tab-view", "favorites-gallery-mode", "workspace-tab-mode", "favorites-mode");
+  }
+  elements.pidInput.value = favorite.pid;
+  loadWork(favorite.pid);
 }
 
 function pixivArtworkUrl(pid) {
@@ -923,11 +997,14 @@ function renderWork() {
 
   elements.workTitle.textContent = work.title;
   elements.workAuthor.textContent = work.authorName;
-  elements.workPid.textContent = `PID ${work.pid}`;
+  elements.workPid.textContent = work.pid;
   elements.workPages.textContent = `${work.pageCount} 张`;
+  elements.workUploadTime.textContent = formatDate(work.uploadedAt);
   const isFavorite = state.favorites.some((favorite) => favorite.pid === work.pid);
   elements.favoriteButton.textContent = isFavorite ? "已收藏" : "收藏";
   elements.favoriteButton.classList.toggle("saved", isFavorite);
+  elements.workFavoriteState.textContent = isFavorite ? "已收藏" : "未收藏";
+  elements.workFavoriteState.classList.toggle("saved-state", isFavorite);
 }
 
 function renderEmptyState() {
@@ -949,6 +1026,8 @@ function renderImages() {
     tile.type = "button";
     tile.dataset.page = String(page.page);
     tile.className = `image-tile ${state.selectedPages.has(page.page) ? "selected" : ""}`;
+    tile.setAttribute("aria-pressed", state.selectedPages.has(page.page) ? "true" : "false");
+    tile.title = `切换 p${page.page + 1}`;
     tile.addEventListener("click", () => {
       if (state.selectedPages.has(page.page)) {
         state.selectedPages.delete(page.page);
@@ -959,13 +1038,13 @@ function renderImages() {
     });
 
     const image = document.createElement("img");
-    image.alt = `p${page.page}`;
+    image.alt = `p${page.page + 1}`;
     const previewUrl = state.previewUrls.get(`${state.work.pid}:${page.page}:preview`);
     if (previewUrl) {
       image.src = previewUrl;
     }
     const badge = document.createElement("span");
-    badge.textContent = `p${page.page}`;
+    badge.textContent = `${page.page + 1}`;
 
     tile.append(image, badge);
     elements.imageGrid.append(tile);
@@ -976,8 +1055,18 @@ function renderDownload() {
   elements.zipMode.classList.toggle("active", state.mode === "zip");
   elements.fileMode.classList.toggle("active", state.mode === "files");
   const selectedCount = state.selectedPages.size;
+  const totalCount = state.work?.pages.length ?? 0;
+  elements.selectedCountLabel.textContent = `已选 ${selectedCount} / ${totalCount}`;
   elements.downloadButton.textContent = `下载 ${selectedCount} 张`;
   elements.downloadButton.disabled = state.busy || !state.work || selectedCount === 0;
+  if (!state.work) {
+    elements.downloadMeta.textContent = "选择页面后下载；ZIP 适合多图归档。";
+  } else if (selectedCount === 0) {
+    elements.downloadMeta.textContent = "先在中间选择至少 1 张图片。";
+  } else {
+    const modeText = state.mode === "zip" ? "ZIP 打包" : "文件模式";
+    elements.downloadMeta.textContent = `准备以${modeText}下载 ${selectedCount} 张图片。`;
+  }
   if (!state.work) {
     elements.selectAllButton.textContent = "全选";
   } else {
@@ -988,6 +1077,7 @@ function renderDownload() {
 
 function renderFavorites() {
   elements.favoritesGrid.textContent = "";
+  elements.openWorkspaceTabButton.hidden = state.openedAsTab && state.view === "workspace";
   elements.openFavoritesTabButton.hidden = state.openedAsTab;
   elements.importFavoritesButton.hidden = !state.openedAsTab;
   elements.exportFavoritesButton.hidden = !state.openedAsTab;
@@ -1055,15 +1145,21 @@ function renderFavorites() {
     const count = document.createElement("span");
     count.className = "favorite-count";
     count.textContent = `${favorite.pageCount} 张`;
-    media.append(image, count);
+    const saved = document.createElement("span");
+    saved.className = "favorite-saved";
+    saved.textContent = "★";
+    media.append(image, count, saved);
 
     const body = document.createElement("div");
     body.className = "favorite-body";
     const title = document.createElement("h2");
     title.textContent = favorite.title;
+    const author = document.createElement("p");
+    author.textContent = favorite.authorName || "未知作者";
     const meta = document.createElement("p");
-    meta.textContent = `${favorite.authorName} · PID ${favorite.pid}`;
-    body.append(title, meta);
+    meta.className = "favorite-pid";
+    meta.textContent = `PID: ${favorite.pid}`;
+    body.append(title, author, meta);
 
     const actions = document.createElement("div");
     actions.className = "card-actions";
@@ -1115,6 +1211,13 @@ function renderFavoriteDetail(favorite) {
     return;
   }
 
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = "Details";
+  const heading = document.createElement("h2");
+  heading.className = "detail-heading";
+  heading.textContent = "详情";
+
   const image = document.createElement("img");
   image.className = "detail-cover";
   image.alt = favorite.title;
@@ -1135,17 +1238,31 @@ function renderFavoriteDetail(favorite) {
   appendDetailMeta(meta, "作者 ID", favorite.authorId || "-");
   appendDetailMeta(meta, "收藏时间", formatDate(favorite.addedAt));
 
+  const note = document.createElement("label");
+  note.className = "detail-note";
+  const noteLabel = document.createElement("span");
+  noteLabel.textContent = "备注";
+  const noteInput = document.createElement("textarea");
+  noteInput.placeholder = "点击输入备注（可选）";
+  noteInput.rows = 3;
+  note.append(noteLabel, noteInput);
+
   const actions = document.createElement("div");
   actions.className = "detail-actions";
   const open = document.createElement("button");
   open.type = "button";
   open.className = "primary-button";
-  open.textContent = "打开 Pixiv";
-  open.addEventListener("click", () => chrome.tabs.create({ url: pixivArtworkUrl(favorite.pid) }));
+  open.textContent = "打开工作台";
+  open.addEventListener("click", () => openFavoriteInWorkspace(favorite));
+  const openPixiv = document.createElement("button");
+  openPixiv.type = "button";
+  openPixiv.className = "secondary-button";
+  openPixiv.textContent = "打开 Pixiv";
+  openPixiv.addEventListener("click", () => chrome.tabs.create({ url: pixivArtworkUrl(favorite.pid) }));
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "secondary-button";
-  remove.textContent = "取消收藏";
+  remove.textContent = "移除收藏";
   remove.addEventListener("click", async () => {
     state.favorites = state.favorites.filter((item) => item.pid !== favorite.pid);
     state.selectedFavoritePid = state.favorites[0]?.pid ?? "";
@@ -1157,9 +1274,9 @@ function renderFavoriteDetail(favorite) {
   download.className = "secondary-button";
   download.textContent = "下载";
   download.addEventListener("click", () => openDownloadChoice(favorite));
-  actions.append(open, download, remove);
+  actions.append(open, openPixiv, download, remove);
 
-  elements.favoriteDetail.append(image, title, author, meta, actions);
+  elements.favoriteDetail.append(eyebrow, heading, image, title, author, meta, note, actions);
 }
 
 function appendDetailMeta(container, label, value) {

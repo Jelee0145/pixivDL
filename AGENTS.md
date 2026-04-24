@@ -10,7 +10,7 @@ This repository contains a Chrome/Edge Manifest V3 browser extension for downloa
 - Do not add code that imports, stores, or asks for Pixiv cookies.
 - Current product direction is a Chrome/Edge Manifest V3 extension, not the earlier FastAPI + React local web app.
 - The default user install/update target is `dist\PixivDL-Browser-latest`; preserve this stable directory name so Chrome keeps the same unpacked-extension identity and can retain `chrome.storage.local` and IndexedDB data.
-- Versioned folders such as `dist\PixivDL-Browser-0.5.0` are useful release artifacts, but should not replace `PixivDL-Browser-latest` as the main recommended local install path.
+- Versioned folders such as `dist\PixivDL-Browser-0.5.1` are useful release artifacts, but should not replace `PixivDL-Browser-latest` as the main recommended local install path.
 - User data belongs in Chrome extension storage:
   - Favorites: `chrome.storage.local`.
   - Work/image cache: extension IndexedDB.
@@ -44,6 +44,32 @@ This repository contains a Chrome/Edge Manifest V3 browser extension for downloa
 - State changes should be visible immediately: favorited works should show an "已收藏" state; selected cards and status messages should update without requiring reload.
 - For packaging, keep outputs easy for a non-developer to understand. Prefer one obvious release ZIP plus the stable `PixivDL-Browser-latest` directory.
 
+## Multi-Agent Collaboration
+
+- Treat cross-window or multi-role work as a shared-state problem. Do not assume another agent has seen your chat history.
+- Before implementation, every agent must read:
+  - `AGENTS.md`
+  - `docs/agent-collaboration.md`
+  - `docs/agent-update-log.md`
+- Before implementation, every agent must review recent git activity:
+  - `git log --oneline -5`
+  - `git diff --stat HEAD~1..HEAD`
+- If the task touches files changed recently, inspect the relevant diff before editing.
+- Before implementation, add or update an entry in `docs/agent-update-log.md` describing:
+  - The task goal and scope
+  - Planned files
+  - Planned implementation approach
+  - Risks, hidden hazards, regressions, and any information worth syncing to other agents
+- After implementation, update the same log entry with:
+  - Completed work
+  - Files changed
+  - Fixed bugs or vulnerabilities
+  - Checks run
+  - Remaining risks or follow-up notes
+- Security fixes and cross-cutting bug fixes must be documented clearly enough that later feature work can follow the new rule without needing prior chat context.
+- When a durable coordination rule or implementation pattern emerges, use `memory-management` to store it when available.
+- The project-local skill `.codex/skills/pixivdl-agent-collaboration` should be used for tasks where cross-agent coordination matters.
+
 ## Verification
 
 - Run a syntax check after JavaScript changes:
@@ -70,13 +96,13 @@ When a change should be reflected in the local loadable build, sync source into:
 
 ```text
 dist\PixivDL-Browser-latest
-dist\PixivDL-Browser-0.5.0
+dist\PixivDL-Browser-0.5.1
 ```
 
 Then rebuild:
 
 ```powershell
-Compress-Archive -Path dist\PixivDL-Browser-latest -DestinationPath dist\PixivDL-Browser-0.5.0.zip -Force
+Compress-Archive -Path dist\PixivDL-Browser-latest -DestinationPath dist\PixivDL-Browser-0.5.1.zip -Force
 ```
 
 Before compressing, remove generated `_metadata/` directories from both source and dist folders if present.

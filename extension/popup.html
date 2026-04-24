@@ -12,27 +12,44 @@
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">P</span>
           <div>
-            <p class="eyebrow">PixivDL Browser</p>
-            <h1>图片下载工作台</h1>
+            <h1>PixivDL Browser</h1>
+            <p>图片下载工作台</p>
           </div>
         </div>
         <form id="pidForm" class="pid-form">
           <input id="pidInput" inputmode="numeric" autocomplete="off" placeholder="输入作品 PID" />
           <button id="fetchButton" type="submit">获取</button>
         </form>
+        <div class="toolbar-actions" aria-label="快捷操作">
+          <button id="focusSettingsButton" class="icon-button" type="button" title="下载设置" aria-label="下载设置">⚙</button>
+          <button id="openPixivHomeButton" class="icon-button" type="button" title="打开 Pixiv" aria-label="打开 Pixiv">↗</button>
+        </div>
       </header>
 
       <nav class="tabs" aria-label="视图">
         <div class="tab-group">
-          <button id="workspaceTab" class="active" type="button">工作台</button>
-          <button id="favoritesTab" type="button">收藏夹</button>
+          <button id="workspaceTab" class="active" type="button">
+            <span aria-hidden="true">▣</span>
+            工作台
+          </button>
+          <button id="favoritesTab" type="button">
+            <span aria-hidden="true">☆</span>
+            收藏夹
+          </button>
         </div>
+        <button id="openWorkspaceTabButton" class="secondary-button workspace-launch-button" type="button">
+          打开完整工作台
+        </button>
       </nav>
 
       <p id="notice" class="notice" hidden></p>
 
       <section id="workspaceView" class="workspace">
         <aside class="summary">
+          <div class="panel-title">
+            <p class="eyebrow">Artwork</p>
+            <h2>图片下载工作台</h2>
+          </div>
           <div id="emptyState" class="empty-state">
             <strong id="emptyTitle">输入 PID 获取作品</strong>
             <span id="emptyBody">获取成功后可预览、选择并下载图片。</span>
@@ -48,10 +65,24 @@
               <h2 id="workTitle"></h2>
               <p id="workAuthor"></p>
             </div>
-            <div class="meta-row">
-              <span id="workPid"></span>
-              <span id="workPages"></span>
-            </div>
+            <dl class="work-meta">
+              <div>
+                <dt>PID</dt>
+                <dd id="workPid"></dd>
+              </div>
+              <div>
+                <dt>图片数量</dt>
+                <dd id="workPages"></dd>
+              </div>
+              <div>
+                <dt>上传时间</dt>
+                <dd id="workUploadTime"></dd>
+              </div>
+              <div>
+                <dt>收藏状态</dt>
+                <dd id="workFavoriteState"></dd>
+              </div>
+            </dl>
             <div class="work-actions" aria-label="作品操作">
               <button id="favoriteButton" class="favorite-button" type="button">收藏</button>
               <button id="openPixivButton" class="open-pixiv-button" type="button">打开 Pixiv</button>
@@ -65,9 +96,15 @@
               <p class="eyebrow">Images</p>
               <h2>图片选择</h2>
             </div>
-            <button id="selectAllButton" class="secondary-button" type="button" disabled>全选</button>
+            <div class="section-actions">
+              <span id="selectedCountLabel" class="selection-count">已选 0 / 0</span>
+              <button id="selectAllButton" class="secondary-button" type="button" disabled>全选</button>
+            </div>
           </div>
           <div id="imageGrid" class="image-grid"></div>
+          <footer class="image-footer">
+            <span>提示：点击缩略图切换选择</span>
+          </footer>
         </section>
 
         <aside class="download">
@@ -77,7 +114,7 @@
               <h2>浏览器下载</h2>
             </div>
           </div>
-          <p class="hint">选择页面后下载；ZIP 适合多图归档，文件模式逐张保存。</p>
+          <p id="downloadMeta" class="download-meta">选择页面后下载；ZIP 适合多图归档。</p>
           <div class="segmented">
             <button id="zipMode" class="active" type="button">ZIP</button>
             <button id="fileMode" type="button">文件</button>
@@ -85,22 +122,31 @@
           <form id="settingsForm" class="settings-form">
             <label class="field">
               <span>保存目录</span>
-              <input id="downloadDirectoryInput" autocomplete="off" placeholder="PixivDL" />
+              <div class="directory-row">
+                <input id="downloadDirectoryInput" autocomplete="off" placeholder="PixivDL" />
+                <button id="browseDownloadDirectoryButton" class="secondary-button directory-browse-button" type="button">
+                  浏览
+                </button>
+              </div>
+              <small id="downloadDirectoryHint" class="field-hint">浏览器下载目录\PixivDL</small>
             </label>
-            <label class="proxy-toggle">
-              <input id="proxyEnabledInput" type="checkbox" />
-              <span>本地代理</span>
-            </label>
-            <div class="proxy-fields">
-              <select id="proxySchemeInput" aria-label="代理协议">
-                <option value="http">HTTP</option>
-                <option value="https">HTTPS</option>
-                <option value="socks4">SOCKS4</option>
-                <option value="socks5">SOCKS5</option>
-              </select>
-              <input id="proxyHostInput" autocomplete="off" placeholder="127.0.0.1" />
-              <input id="proxyPortInput" inputmode="numeric" autocomplete="off" placeholder="7890" />
-            </div>
+            <details class="advanced-settings">
+              <summary>更多设置</summary>
+              <label class="proxy-toggle">
+                <input id="proxyEnabledInput" type="checkbox" />
+                <span>本地代理</span>
+              </label>
+              <div class="proxy-fields">
+                <select id="proxySchemeInput" aria-label="代理协议">
+                  <option value="http">HTTP</option>
+                  <option value="https">HTTPS</option>
+                  <option value="socks4">SOCKS4</option>
+                  <option value="socks5">SOCKS5</option>
+                </select>
+                <input id="proxyHostInput" autocomplete="off" placeholder="127.0.0.1" />
+                <input id="proxyPortInput" inputmode="numeric" autocomplete="off" placeholder="7890" />
+              </div>
+            </details>
             <button id="saveSettingsButton" class="secondary-button" type="submit">保存设置</button>
           </form>
           <button id="downloadButton" class="primary-button" type="button" disabled>下载 0 张</button>
