@@ -1,6 +1,6 @@
-# PixivDL Browser v0.5.1
+# PixivDL Browser v0.5.2
 
-PixivDL Browser v0.5.1 是在 `0.5.0` 基础上的整理发布。它继续保持无本地后端、无 Cookie 导入的浏览器扩展形态，同时把当前已验证的工作台布局、保存目录显示、收藏仓库操作和协作说明同步进仓库与发布包。
+PixivDL Browser v0.5.2 是在 `0.5.1` 基础上的版本迭代发布。它延续当前无本地后端、无 Cookie 导入的浏览器扩展形态，并把仓库中的版本锚点、安装说明、协作约束和本地打包产物统一推进到同一版本号。
 
 ## 适合谁
 
@@ -30,7 +30,7 @@ PixivDL Browser v0.5.1 是在 `0.5.0` 基础上的整理发布。它继续保持
 
 ## 安装
 
-1. 下载 `PixivDL-Browser-0.5.1.zip`。
+1. 下载 `PixivDL-Browser-0.5.2.zip`。
 2. 解压 ZIP 文件。
 3. 为了保留收藏和缓存，建议把内容覆盖到固定目录，例如 `PixivDL-Browser-latest`。
 4. 打开 Chrome 或 Edge 的扩展管理页。
@@ -40,7 +40,7 @@ PixivDL Browser v0.5.1 是在 `0.5.0` 基础上的整理发布。它继续保持
 
 ## 发布文件
 
-- `PixivDL-Browser-0.5.1.zip`
+- `PixivDL-Browser-0.5.2.zip`
 - SHA256: `由 GitHub Actions 发布流程生成`
 
 ## 限制

@@ -31,6 +31,8 @@ PixivDL Browser 是一款轻量的 Pixiv 浏览器扩展：复用当前浏览器
 D:\pixivdl\dist\PixivDL-Browser-latest
 ```
 
+当前仓库对应的最新发布包示例：`PixivDL-Browser-0.5.2.zip`。
+
 安装步骤：
 
 1. 下载发布包并解压到固定目录。

@@ -36,6 +36,34 @@ All agents must append or update an entry here before implementation and complet
 
 ## Active Entries
 
+## 2026-04-24 09:30 - Codex/Version Iteration
+
+### Task
+- Goal: Read the current PixivDL code/docs state and iterate the repository version from `0.5.1` to `0.5.2`.
+- Scope: Version anchors in source/docs, release notes, collaboration instructions, and local dist artifact naming.
+- Planned files: `AGENTS.md`, `RELEASE_NOTES.md`, `docs/agent-update-log.md`, `extension/README.md`, `extension/manifest.json`
+
+### Pre-Implementation Review
+- Recent git changes reviewed:
+  - `git log --oneline -5`
+  - `git diff --stat HEAD~1..HEAD`
+- Relevant diffs inspected: `HEAD` changes for version-related files via `git show --stat --oneline HEAD -- README.md RELEASE_NOTES.md AGENTS.md extension/README.md extension/manifest.json docs/agent-update-log.md`; committed `extension/manifest.json` and `RELEASE_NOTES.md` reviewed to confirm the current release baseline is `0.5.1`.
+- Planned approach: Bump version references to `0.5.2` in the manifest, release-facing docs, and project instructions; then sync `dist\PixivDL-Browser-latest` and `dist\PixivDL-Browser-0.5.2`, rebuild a single current ZIP, and record checks/results.
+
+### Hazards / Sync Notes
+- Hidden risks: Missing a single `0.5.1` reference would create confusing release metadata or mismatched local packaging instructions.
+- Regressions to watch: Folder/example paths in docs and AGENTS must keep recommending `PixivDL-Browser-latest` as the stable install target, not switch the user to versioned folders.
+- Security or data concerns: This task should not alter proxy behavior, cookie handling, download path semantics, or storage formats; version iteration must remain documentation/packaging only.
+- Information other agents must know: Historical log entries mentioning `0.5.1` are preserved as release history; only current version anchors should move to `0.5.2`.
+
+### Completion
+- Status: Completed
+- Files changed: `AGENTS.md`, `README.md`, `RELEASE_NOTES.md`, `docs/agent-update-log.md`, `extension/README.md`, `extension/manifest.json`
+- Completed work: Read the current collaboration docs, recent git history, and version-bearing files; bumped the active extension version from `0.5.1` to `0.5.2` in the manifest, release notes, extension install docs, AGENTS packaging examples, and root release-install README text; synced local dist outputs to `dist\PixivDL-Browser-latest` and `dist\PixivDL-Browser-0.5.2`; rebuilt `dist\PixivDL-Browser-0.5.2.zip`.
+- Fixed bugs / vulnerabilities: Prevented version drift between source manifest, release-facing documentation, AGENTS packaging instructions, and local dist artifacts.
+- Checks run: `node --check extension\popup.js`; verified `extension/manifest.json`, `dist\PixivDL-Browser-latest\manifest.json`, and `dist\PixivDL-Browser-0.5.2\manifest.json` all report `0.5.2`; inspected `dist\PixivDL-Browser-0.5.2.zip` contents; ran `git diff --check`.
+- Remaining risks / follow-ups: Historical log entries and historical release notes intentionally still mention `0.5.1`; old ZIP artifacts remain in `dist/` because this turn avoided destructive cleanup. If the next release workflow is used, publish under tag `v0.5.2` so the GitHub release matches the manifest and local package naming.
+
 ## 2026-04-24 00:00 - Coordination Bootstrap
 
 ### Task

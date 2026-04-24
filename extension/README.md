@@ -16,7 +16,7 @@
 D:\pixivdl\dist\PixivDL-Browser-latest
 ```
 
-也可以加载版本目录 `D:\pixivdl\dist\PixivDL-Browser-0.5.1`，但后续需要继续覆盖同一个目录并刷新扩展，避免 Chrome 把新目录识别为另一个扩展。
+也可以加载版本目录 `D:\pixivdl\dist\PixivDL-Browser-0.5.2`，但后续需要继续覆盖同一个目录并刷新扩展，避免 Chrome 把新目录识别为另一个扩展。
 
 开发调试时也可以直接加载源码目录 `D:\pixivdl\extension`。
 
