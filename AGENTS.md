@@ -10,7 +10,7 @@ This repository contains a Chrome/Edge Manifest V3 browser extension for downloa
 - Do not add code that imports, stores, or asks for Pixiv cookies.
 - Current product direction is a Chrome/Edge Manifest V3 extension, not the earlier FastAPI + React local web app.
 - The default user install/update target is `dist\PixivDL-Browser-latest`; preserve this stable directory name so Chrome keeps the same unpacked-extension identity and can retain `chrome.storage.local` and IndexedDB data.
-- Versioned folders such as `dist\PixivDL-Browser-0.5.2` are useful release artifacts, but should not replace `PixivDL-Browser-latest` as the main recommended local install path.
+- Versioned folders such as `dist\PixivDL-Browser-0.5.5` are useful release artifacts, but should not replace `PixivDL-Browser-latest` as the main recommended local install path.
 - User data belongs in Chrome extension storage:
   - Favorites: `chrome.storage.local`.
   - Work/image cache: extension IndexedDB.
@@ -96,13 +96,13 @@ When a change should be reflected in the local loadable build, sync source into:
 
 ```text
 dist\PixivDL-Browser-latest
-dist\PixivDL-Browser-0.5.2
+dist\PixivDL-Browser-0.5.5
 ```
 
 Then rebuild:
 
 ```powershell
-Compress-Archive -Path dist\PixivDL-Browser-latest -DestinationPath dist\PixivDL-Browser-0.5.2.zip -Force
+Compress-Archive -Path dist\PixivDL-Browser-latest -DestinationPath dist\PixivDL-Browser-0.5.5.zip -Force
 ```
 
 Before compressing, remove generated `_metadata/` directories from both source and dist folders if present.

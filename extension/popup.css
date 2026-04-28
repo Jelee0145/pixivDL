@@ -702,15 +702,10 @@ h2 {
 }
 
 .download-meta {
-  margin: 0 0 var(--space-md);
-  min-height: 38px;
-  padding: 9px 10px;
-  border: 1px solid var(--blue-soft);
-  border-radius: 8px;
-  background: var(--blue-faint);
-  color: var(--blue-deep);
+  margin: 8px 0 0;
+  color: var(--muted);
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 .segmented {
@@ -735,11 +730,12 @@ h2 {
 .settings-form {
   display: grid;
   gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  margin-top: var(--space-sm);
 }
 
 .field,
-.proxy-toggle {
+.proxy-toggle,
+.ask-location-toggle {
   display: grid;
   gap: 6px;
   color: var(--muted);
@@ -763,11 +759,16 @@ h2 {
 
 .directory-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 58px;
+  grid-template-columns: minmax(0, 1fr) 58px 58px;
   gap: var(--space-xs);
 }
 
-.directory-browse-button {
+.directory-row:has(.directory-clear-button[hidden]) {
+  grid-template-columns: minmax(0, 1fr) 58px;
+}
+
+.directory-browse-button,
+.directory-clear-button {
   min-height: 36px;
   padding: 0 10px;
   white-space: nowrap;
@@ -793,7 +794,15 @@ h2 {
   align-items: center;
 }
 
-.proxy-toggle input {
+.ask-location-toggle {
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  margin-top: 2px;
+  font-weight: 680;
+}
+
+.proxy-toggle input,
+.ask-location-toggle input {
   width: 16px;
   height: 16px;
   margin: 0;
@@ -807,16 +816,18 @@ h2 {
 }
 
 .advanced-settings {
+  margin-top: var(--space-sm);
   padding: 8px 0 0;
   border-top: 1px solid var(--line);
 }
 
 .advanced-settings summary {
-  min-height: 30px;
+  min-height: 28px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 760;
   cursor: pointer;
+  list-style-position: inside;
 }
 
 .advanced-settings[open] {
@@ -840,18 +851,19 @@ h2 {
 
 .progress {
   display: grid;
-  gap: var(--space-sm);
-  margin-top: var(--space-md);
+  gap: 5px;
+  margin-top: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.25;
 }
 
 .progress div {
   width: 100%;
-  height: 7px;
+  height: 3px;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--blue-soft);
+  background: oklch(91% 0.035 150);
 }
 
 .progress i {
@@ -860,8 +872,20 @@ h2 {
   max-width: 100%;
   height: 100%;
   border-radius: inherit;
-  background: var(--blue);
+  background: oklch(64% 0.16 150);
   transition: width 160ms ease;
+}
+
+.progress.error {
+  color: oklch(45% 0.16 25);
+}
+
+.progress.error div {
+  background: oklch(92% 0.055 25);
+}
+
+.progress.error i {
+  background: oklch(58% 0.2 25);
 }
 
 .progress[hidden] {

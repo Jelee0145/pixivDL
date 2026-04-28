@@ -4,12 +4,17 @@ const PIXIV_ORIGIN = "https://www.pixiv.net";
 const FAVORITES_KEY = "pixivdlFavorites";
 const SETTINGS_KEY = "pixivdlSettings";
 const DB_NAME = "pixivdlBrowser";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const WORK_STORE = "works";
 const IMAGE_STORE = "images";
+const HANDLE_STORE = "handles";
+const DOWNLOAD_FOLDER_HANDLE_KEY = "downloadFolder";
 
 const DEFAULT_SETTINGS = {
+  downloadTarget: "browser",
   downloadDirectory: "PixivDL",
+  downloadFolderName: "",
+  downloadAskEachTime: false,
   proxyEnabled: false,
   proxyScheme: "http",
   proxyHost: "127.0.0.1",
@@ -31,7 +36,8 @@ const state = {
   pendingDownloadPid: "",
   failedPid: "",
   failureMessage: "",
-  settings: { ...DEFAULT_SETTINGS }
+  settings: { ...DEFAULT_SETTINGS },
+  localDownloadFolderHandle: null
 };
 
 const elements = {
@@ -78,6 +84,8 @@ const elements = {
   settingsForm: document.querySelector("#settingsForm"),
   downloadDirectoryInput: document.querySelector("#downloadDirectoryInput"),
   browseDownloadDirectoryButton: document.querySelector("#browseDownloadDirectoryButton"),
+  clearDownloadDirectoryButton: document.querySelector("#clearDownloadDirectoryButton"),
+  askDownloadLocationInput: document.querySelector("#askDownloadLocationInput"),
   downloadDirectoryHint: document.querySelector("#downloadDirectoryHint"),
   proxyEnabledInput: document.querySelector("#proxyEnabledInput"),
   proxySchemeInput: document.querySelector("#proxySchemeInput"),
@@ -186,8 +194,10 @@ function bindEvents() {
   elements.emptyPixivButton.addEventListener("click", openFailedWorkOnPixiv);
   elements.zipMode.addEventListener("click", () => setMode("zip"));
   elements.fileMode.addEventListener("click", () => setMode("files"));
-  elements.downloadDirectoryInput.addEventListener("input", updateDownloadDirectoryDisplay);
-  elements.browseDownloadDirectoryButton.addEventListener("click", openDownloadDirectory);
+  elements.downloadDirectoryInput.addEventListener("input", switchToBrowserDownloadDirectory);
+  elements.browseDownloadDirectoryButton.addEventListener("click", chooseDownloadDirectory);
+  elements.clearDownloadDirectoryButton.addEventListener("click", clearSelectedDownloadDirectory);
+  elements.askDownloadLocationInput.addEventListener("change", toggleAskDownloadLocation);
   elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
   elements.downloadButton.addEventListener("click", downloadSelected);
   elements.closeDownloadChoiceButton.addEventListener("click", closeDownloadChoice);
@@ -209,12 +219,15 @@ async function loadWork(pid) {
   setBusy(true);
   state.workspaceInput = pid;
   showNotice("正在读取 Pixiv 作品...");
+  setProgress(0.18, "正在获取作品信息");
   clearFailure();
   clearPreviewUrls();
   try {
     let work;
     try {
-      const [metadata, pages] = await Promise.all([fetchMetadata(pid), fetchPages(pid)]);
+      const metadata = await fetchMetadata(pid);
+      setProgress(0.48, "正在获取页面列表");
+      const pages = await fetchPages(pid);
       work = normalizeWork(pid, metadata, pages);
       await putCachedWork(work);
     } catch (error) {
@@ -231,6 +244,7 @@ async function loadWork(pid) {
     if (!elements.notice.textContent.startsWith("Pixiv 请求失败")) {
       showNotice(`已获取 ${work.pageCount} 张图片`);
     }
+    setProgress(1, `已获取 ${work.pageCount} P`);
     clearFailure();
     render();
     await loadPreviews(work);
@@ -239,6 +253,7 @@ async function loadWork(pid) {
     state.selectedPages.clear();
     const message = error instanceof Error ? error.message : "获取作品失败";
     showNotice(message);
+    setProgress(0.48, `P 数获取失败：${message}`, "error");
     setFailure(pid, message);
     render();
   } finally {
@@ -402,6 +417,7 @@ async function downloadSelected() {
     return;
   }
   setBusy(true);
+  let completed = false;
   try {
     const pages = state.work.pages.filter((page) => state.selectedPages.has(page.page));
     if (state.mode === "files") {
@@ -413,11 +429,18 @@ async function downloadSelected() {
     } else {
       await downloadZip(state.work, pages);
     }
-    showNotice("浏览器下载已发起");
+    completed = true;
+    showNotice(downloadDoneMessage());
   } catch (error) {
-    showNotice(error instanceof Error ? error.message : "下载失败");
+    const message = error instanceof Error ? error.message : "下载失败";
+    showNotice(message);
+    if (!elements.progress.classList.contains("error")) {
+      setProgress(0, message, "error");
+    }
   } finally {
-    setProgress(0, "");
+    if (completed) {
+      setProgress(0, "");
+    }
     setBusy(false);
   }
 }
@@ -456,6 +479,7 @@ async function downloadPendingFavorite(mode) {
   }
   closeDownloadChoice();
   setBusy(true);
+  let completed = false;
   try {
     showFavoritesStatus(`正在准备下载 ${favorite.title}...`);
     const work = await loadWorkForDownload(favorite);
@@ -464,24 +488,36 @@ async function downloadPendingFavorite(mode) {
     } else {
       await downloadZip(work, work.pages);
     }
-    showFavoritesStatus("浏览器下载已发起");
+    completed = true;
+    showFavoritesStatus(downloadDoneMessage());
   } catch (error) {
-    showFavoritesStatus(error instanceof Error ? error.message : "下载失败");
+    const message = error instanceof Error ? error.message : "下载失败";
+    showFavoritesStatus(message);
+    if (!elements.progress.classList.contains("error")) {
+      setProgress(0, message, "error");
+    }
   } finally {
-    setProgress(0, "");
+    if (completed) {
+      setProgress(0, "");
+    }
     setBusy(false);
   }
 }
 
 async function downloadSinglePage(work, page) {
   setProgress(0.2, `正在下载 p${page.page}`);
-  const blob = await fetchImageBlobCached(
-    page.originalUrl,
-    work.pid,
-    cacheImageKey(work.pid, page.page, "original")
-  );
-  const filename = `${work.pid}_p${page.page}.${page.extension}`;
-  await browserDownloadBlob(blob, filename);
+  try {
+    const blob = await fetchImageBlobCached(
+      page.originalUrl,
+      work.pid,
+      cacheImageKey(work.pid, page.page, "original")
+    );
+    const filename = `${work.pid}_p${page.page}.${page.extension}`;
+    await browserDownloadBlob(blob, filename);
+  } catch (error) {
+    pauseProgressOnPageError(page, 0, 1, error);
+    throw error;
+  }
   setProgress(1, "完成");
 }
 
@@ -489,13 +525,18 @@ async function downloadFiles(work, pages) {
   for (let index = 0; index < pages.length; index += 1) {
     const page = pages[index];
     setProgress(index / pages.length, `正在下载 p${page.page}`);
-    const blob = await fetchImageBlobCached(
-      page.originalUrl,
-      work.pid,
-      cacheImageKey(work.pid, page.page, "original")
-    );
-    const filename = `${work.pid}_${sanitizeFilename(work.title)}/${work.pid}_p${page.page}.${page.extension}`;
-    await browserDownloadBlob(blob, filename);
+    try {
+      const blob = await fetchImageBlobCached(
+        page.originalUrl,
+        work.pid,
+        cacheImageKey(work.pid, page.page, "original")
+      );
+      const filename = `${work.pid}_${sanitizeFilename(work.title)}/${work.pid}_p${page.page}.${page.extension}`;
+      await browserDownloadBlob(blob, filename);
+    } catch (error) {
+      pauseProgressOnPageError(page, index, pages.length, error);
+      throw error;
+    }
   }
   setProgress(1, "完成");
 }
@@ -505,13 +546,18 @@ async function downloadZip(work, pages) {
   for (let index = 0; index < pages.length; index += 1) {
     const page = pages[index];
     setProgress(index / pages.length, `正在获取 p${page.page}`);
-    const blob = await fetchImageBlobCached(
-      page.originalUrl,
-      work.pid,
-      cacheImageKey(work.pid, page.page, "original")
-    );
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    zip.addFile(`${work.pid}_p${page.page}.${page.extension}`, bytes);
+    try {
+      const blob = await fetchImageBlobCached(
+        page.originalUrl,
+        work.pid,
+        cacheImageKey(work.pid, page.page, "original")
+      );
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      zip.addFile(`${work.pid}_p${page.page}.${page.extension}`, bytes);
+    } catch (error) {
+      pauseProgressOnPageError(page, index, pages.length, error);
+      throw error;
+    }
   }
   setProgress(0.92, "正在生成 ZIP");
   const zipBlob = zip.toBlob();
@@ -520,16 +566,20 @@ async function downloadZip(work, pages) {
   setProgress(1, "完成");
 }
 
-function browserDownloadBlob(blob, filename) {
+async function browserDownloadBlob(blob, filename) {
+  if (state.settings.downloadTarget === "folder") {
+    await writeBlobToSelectedFolder(blob, filename);
+    return null;
+  }
+  syncBrowserDownloadSettingsFromForm();
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
-    const directory = getDownloadDirectory();
-    const downloadFilename = directory ? `${directory}/${filename}` : filename;
+    const downloadFilename = buildBrowserDownloadFilename(filename);
     chrome.downloads.download(
       {
         url,
         filename: downloadFilename,
-        saveAs: false,
+        saveAs: state.settings.downloadAskEachTime,
         conflictAction: "uniquify"
       },
       (downloadId) => {
@@ -547,6 +597,91 @@ function browserDownloadBlob(blob, filename) {
       }
     );
   });
+}
+
+function pauseProgressOnPageError(page, index, total, error) {
+  const message = error instanceof Error ? error.message : "未知错误";
+  const value = total > 0 ? index / total : 0;
+  setProgress(value, `p${page.page} 获取失败，已暂停：${message}`, "error");
+}
+
+function buildBrowserDownloadFilename(filename) {
+  const safeFileParts = String(filename)
+    .split(/[\\/]+/)
+    .map((part) => sanitizePathPart(part))
+    .filter(Boolean);
+  const directory = getDownloadDirectory();
+  const safeDirectoryParts = directory
+    ? directory.split("/").map((part) => sanitizePathPart(part)).filter(Boolean)
+    : [];
+  return [...safeDirectoryParts, ...safeFileParts].join("/") || "download";
+}
+
+function downloadDoneMessage() {
+  if (state.settings.downloadTarget === "folder") {
+    return "已保存到选择的本地文件夹";
+  }
+  return state.settings.downloadAskEachTime ? "已通过浏览器保存对话框确认下载" : "浏览器下载已发起";
+}
+
+async function writeBlobToSelectedFolder(blob, filename) {
+  const root = await getWritableDownloadFolderHandle();
+  const parts = filename
+    .split(/[\\/]+/)
+    .map((part) => sanitizePathPart(part))
+    .filter(Boolean);
+  if (parts.length === 0) {
+    throw new Error("下载文件名无效");
+  }
+
+  let directory = root;
+  for (const part of parts.slice(0, -1)) {
+    directory = await directory.getDirectoryHandle(part, { create: true });
+  }
+
+  const fileName = await getAvailableFileName(directory, parts.at(-1));
+  const fileHandle = await directory.getFileHandle(fileName, { create: true });
+  const writable = await fileHandle.createWritable();
+  try {
+    await writable.write(blob);
+  } finally {
+    await writable.close();
+  }
+}
+
+async function getWritableDownloadFolderHandle() {
+  const handle = state.localDownloadFolderHandle ?? await getStoredDownloadFolderHandle();
+  if (!handle) {
+    state.settings = normalizeSettings({ ...state.settings, downloadTarget: "browser" });
+    await storageSet({ [SETTINGS_KEY]: state.settings });
+    syncSettingsForm();
+    throw new Error("未选择本地保存文件夹，请点击“浏览”重新选择。");
+  }
+  const permitted = await hasDirectoryPermission(handle, false);
+  if (!permitted) {
+    throw new Error("本地保存文件夹权限已失效，请点击“浏览”重新选择。");
+  }
+  state.localDownloadFolderHandle = handle;
+  return handle;
+}
+
+async function getAvailableFileName(directory, fileName) {
+  const safeName = sanitizePathPart(fileName) || "download";
+  const dotIndex = safeName.lastIndexOf(".");
+  const stem = dotIndex > 0 ? safeName.slice(0, dotIndex) : safeName;
+  const extension = dotIndex > 0 ? safeName.slice(dotIndex) : "";
+  for (let index = 0; index < 1000; index += 1) {
+    const candidate = index === 0 ? safeName : `${stem} (${index})${extension}`;
+    try {
+      await directory.getFileHandle(candidate, { create: false });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError") {
+        return candidate;
+      }
+      throw error;
+    }
+  }
+  throw new Error("无法生成不重复的下载文件名");
 }
 
 async function toggleFavorite() {
@@ -609,13 +744,29 @@ async function saveFavorites() {
 async function loadSettings() {
   const data = await storageGet(SETTINGS_KEY);
   state.settings = normalizeSettings(data[SETTINGS_KEY]);
+  if (state.settings.downloadTarget === "folder") {
+    const item = await getStoredDownloadFolderItem();
+    state.localDownloadFolderHandle = item?.handle ?? null;
+    state.settings.downloadFolderName = item?.name ?? state.settings.downloadFolderName;
+    if (!state.localDownloadFolderHandle) {
+      state.settings = normalizeSettings({ ...state.settings, downloadTarget: "browser" });
+      await storageSet({ [SETTINGS_KEY]: state.settings });
+    }
+  }
 }
 
 async function saveSettingsFromForm(event) {
   event.preventDefault();
   try {
     state.settings = normalizeSettings({
-      downloadDirectory: elements.downloadDirectoryInput.value,
+      downloadTarget: state.settings.downloadTarget,
+      downloadDirectory: state.settings.downloadTarget === "folder"
+        ? state.settings.downloadDirectory
+        : elements.downloadDirectoryInput.value,
+      downloadFolderName: state.settings.downloadFolderName,
+      downloadAskEachTime: state.settings.downloadTarget === "folder"
+        ? false
+        : elements.askDownloadLocationInput.checked,
       proxyEnabled: elements.proxyEnabledInput.checked,
       proxyScheme: elements.proxySchemeInput.value,
       proxyHost: elements.proxyHostInput.value,
@@ -632,6 +783,8 @@ async function saveSettingsFromForm(event) {
 
 function normalizeSettings(value) {
   const source = value && typeof value === "object" ? value : {};
+  const downloadTarget = source.downloadTarget === "folder" ? "folder" : DEFAULT_SETTINGS.downloadTarget;
+  const downloadAskEachTime = downloadTarget === "folder" ? false : Boolean(source.downloadAskEachTime);
   const proxyScheme = ["http", "https", "socks4", "socks5"].includes(source.proxyScheme)
     ? source.proxyScheme
     : DEFAULT_SETTINGS.proxyScheme;
@@ -639,7 +792,10 @@ function normalizeSettings(value) {
   const proxyPort = String(source.proxyPort ?? DEFAULT_SETTINGS.proxyPort).trim();
   const portNumber = Number.parseInt(proxyPort, 10);
   return {
+    downloadTarget,
     downloadDirectory: normalizeDownloadDirectory(source.downloadDirectory ?? DEFAULT_SETTINGS.downloadDirectory),
+    downloadFolderName: String(source.downloadFolderName ?? "").trim().slice(0, 120),
+    downloadAskEachTime,
     proxyEnabled: Boolean(source.proxyEnabled),
     proxyScheme,
     proxyHost,
@@ -650,7 +806,27 @@ function normalizeSettings(value) {
 }
 
 function syncSettingsForm() {
-  elements.downloadDirectoryInput.value = formatDownloadDirectoryPath(state.settings.downloadDirectory);
+  if (state.settings.downloadTarget === "folder") {
+    elements.downloadDirectoryInput.value = state.settings.downloadFolderName
+      ? `Folder: ${state.settings.downloadFolderName}`
+      : "Folder selected";
+    elements.downloadDirectoryInput.readOnly = true;
+    elements.downloadDirectoryInput.title = "下载会直接保存到已授权的本地文件夹";
+    elements.clearDownloadDirectoryButton.hidden = false;
+    elements.askDownloadLocationInput.checked = false;
+    elements.askDownloadLocationInput.disabled = true;
+  } else {
+    elements.downloadDirectoryInput.value = formatEditableDownloadDirectory(state.settings.downloadDirectory);
+    elements.downloadDirectoryInput.readOnly = false;
+    elements.downloadDirectoryInput.title = "保存目录是 Downloads 下的相对路径";
+    elements.clearDownloadDirectoryButton.hidden = true;
+    elements.askDownloadLocationInput.checked = state.settings.downloadAskEachTime;
+    elements.askDownloadLocationInput.disabled = false;
+  }
+  elements.browseDownloadDirectoryButton.textContent = canPickDirectory() ? "浏览" : "询问";
+  elements.browseDownloadDirectoryButton.title = canPickDirectory()
+    ? "选择一个本地保存文件夹"
+    : "当前扩展环境不支持直接选择文件夹，点击后改为下载时询问保存位置";
   updateDownloadDirectoryDisplay();
   elements.proxyEnabledInput.checked = state.settings.proxyEnabled;
   elements.proxySchemeInput.value = state.settings.proxyScheme;
@@ -662,35 +838,147 @@ function getDownloadDirectory() {
   return normalizeDownloadDirectory(state.settings.downloadDirectory);
 }
 
+function syncBrowserDownloadSettingsFromForm() {
+  if (state.settings.downloadTarget === "folder") {
+    return;
+  }
+  state.settings = normalizeSettings({
+    ...state.settings,
+    downloadDirectory: elements.downloadDirectoryInput.value,
+    downloadAskEachTime: elements.askDownloadLocationInput.checked
+  });
+  elements.downloadDirectoryInput.value = formatEditableDownloadDirectory(state.settings.downloadDirectory);
+  updateDownloadDirectoryDisplay();
+  storageSet({ [SETTINGS_KEY]: state.settings }).catch(() => undefined);
+}
+
+function switchToBrowserDownloadDirectory() {
+  if (state.settings.downloadTarget === "folder") {
+    state.settings = normalizeSettings({ ...state.settings, downloadTarget: "browser" });
+    state.localDownloadFolderHandle = null;
+    elements.downloadDirectoryInput.readOnly = false;
+    elements.clearDownloadDirectoryButton.hidden = true;
+    elements.askDownloadLocationInput.disabled = false;
+  }
+  updateDownloadDirectoryDisplay();
+}
+
 function updateDownloadDirectoryDisplay() {
+  if (state.settings.downloadTarget === "folder") {
+    elements.downloadDirectoryHint.textContent = `Saved to: ${state.settings.downloadFolderName || "selected folder"}`;
+    return;
+  }
   const directory = normalizeDownloadDirectory(elements.downloadDirectoryInput.value);
-  elements.downloadDirectoryHint.textContent = `实际保存：${formatDownloadDirectoryPath(directory)}`;
-  elements.downloadDirectoryInput.title = "保存目录是浏览器下载目录下的相对路径";
+  elements.downloadDirectoryHint.textContent = state.settings.downloadAskEachTime
+    ? `下载时选择保存位置；默认子目录：${formatDownloadDirectoryPath(directory)}`
+    : `实际保存：${formatDownloadDirectoryPath(directory)}`;
+  elements.downloadDirectoryInput.title = "保存目录是 Downloads 下的相对路径";
 }
 
 function formatDownloadDirectoryPath(value) {
   const directory = normalizeDownloadDirectory(value).replace(/\//g, "\\");
-  return `浏览器下载目录\\${directory}`;
+  return `Downloads\\${directory}`;
 }
 
-function openDownloadDirectory() {
-  if (chrome.downloads?.showDefaultFolder) {
-    chrome.downloads.showDefaultFolder();
-    showNotice("已打开浏览器默认下载目录；保存子目录会在下载时自动创建。");
+function formatEditableDownloadDirectory(value) {
+  return normalizeDownloadDirectory(value).replace(/\//g, "\\");
+}
+
+async function chooseDownloadDirectory() {
+  if (!canPickDirectory()) {
+    state.settings = normalizeSettings({
+      ...state.settings,
+      downloadTarget: "browser",
+      downloadAskEachTime: true
+    });
+    await storageSet({ [SETTINGS_KEY]: state.settings });
+    syncSettingsForm();
+    showNotice("当前扩展环境不支持直接选择文件夹，已改为下载时弹出保存位置选择框。");
     return;
   }
-  chrome.tabs.create({ url: "chrome://downloads/" });
+  try {
+    const handle = await window.showDirectoryPicker({
+      id: "pixivdl-downloads",
+      mode: "readwrite"
+    });
+    const permitted = await hasDirectoryPermission(handle, true);
+    if (!permitted) {
+      showNotice("未获得文件夹写入权限，保存位置未改变。");
+      return;
+    }
+    await putDownloadFolderHandle(handle);
+    state.localDownloadFolderHandle = handle;
+    state.settings = normalizeSettings({
+      ...state.settings,
+      downloadTarget: "folder",
+      downloadFolderName: handle.name,
+      downloadAskEachTime: false
+    });
+    await storageSet({ [SETTINGS_KEY]: state.settings });
+    syncSettingsForm();
+    showNotice(`已选择本地保存文件夹：${handle.name}`);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      showNotice("已取消选择保存文件夹");
+      return;
+    }
+    showNotice(error instanceof Error ? error.message : "选择保存文件夹失败");
+  }
+}
+
+async function clearSelectedDownloadDirectory() {
+  state.localDownloadFolderHandle = null;
+  state.settings = normalizeSettings({
+    ...state.settings,
+    downloadTarget: "browser",
+    downloadFolderName: "",
+    downloadAskEachTime: false
+  });
+  await deleteStoredDownloadFolderHandle().catch(() => undefined);
+  await storageSet({ [SETTINGS_KEY]: state.settings });
+  syncSettingsForm();
+  showNotice(`已恢复为 ${formatDownloadDirectoryPath(state.settings.downloadDirectory)}`);
+}
+
+async function toggleAskDownloadLocation() {
+  state.settings = normalizeSettings({
+    ...state.settings,
+    downloadTarget: "browser",
+    downloadAskEachTime: elements.askDownloadLocationInput.checked
+  });
+  state.localDownloadFolderHandle = null;
+  await storageSet({ [SETTINGS_KEY]: state.settings });
+  syncSettingsForm();
+  showNotice(state.settings.downloadAskEachTime
+    ? "下载时会弹出保存位置选择框"
+    : `已恢复为 ${formatDownloadDirectoryPath(state.settings.downloadDirectory)}`);
+}
+
+function canPickDirectory() {
+  return typeof window.showDirectoryPicker === "function";
+}
+
+async function hasDirectoryPermission(handle, request) {
+  const options = { mode: "readwrite" };
+  if ((await handle.queryPermission(options)) === "granted") {
+    return true;
+  }
+  return request && (await handle.requestPermission(options)) === "granted";
 }
 
 function normalizeDownloadDirectory(value) {
-  const raw = String(value ?? "")
+  let raw = String(value ?? "")
     .trim()
-    .replace(/^浏览器下载目录[\\/]+/, "");
+    .replace(/^(?:浏览器下载目录|Downloads)[\\/]+/i, "");
   if (!raw) {
     return DEFAULT_SETTINGS.downloadDirectory;
   }
-  const withoutDrive = raw.replace(/^[a-zA-Z]:/, "");
-  const parts = withoutDrive
+  raw = raw.replace(/^[a-zA-Z]:[\\/]+/, "");
+  const downloadsMatch = raw.match(/(?:^|[\\/])Downloads[\\/]+(.+)$/i);
+  if (downloadsMatch?.[1]) {
+    raw = downloadsMatch[1];
+  }
+  const parts = raw
     .split(/[\\/]+/)
     .map((part) => sanitizePathPart(part))
     .filter(Boolean);
@@ -968,10 +1256,11 @@ function showNotice(message) {
   elements.notice.hidden = !message;
 }
 
-function setProgress(value, text) {
+function setProgress(value, text, tone = "normal") {
   elements.progress.hidden = !text;
   elements.progressText.textContent = text;
   elements.progressBar.style.width = `${Math.max(0, Math.min(1, value)) * 100}%`;
+  elements.progress.classList.toggle("error", tone === "error");
 }
 
 function render() {
@@ -1353,6 +1642,9 @@ function openDatabase() {
       if (!db.objectStoreNames.contains(IMAGE_STORE)) {
         db.createObjectStore(IMAGE_STORE, { keyPath: "key" });
       }
+      if (!db.objectStoreNames.contains(HANDLE_STORE)) {
+        db.createObjectStore(HANDLE_STORE, { keyPath: "key" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("打开本地缓存失败"));
@@ -1405,6 +1697,25 @@ async function putCachedImage(key, blob) {
 async function getCachedImage(key) {
   const item = await idbTransaction(IMAGE_STORE, "readonly", (store) => store.get(key));
   return item?.blob instanceof Blob ? item.blob : null;
+}
+
+async function putDownloadFolderHandle(handle) {
+  await idbTransaction(HANDLE_STORE, "readwrite", (store) =>
+    store.put({ key: DOWNLOAD_FOLDER_HANDLE_KEY, handle, name: handle.name, savedAt: new Date().toISOString() })
+  );
+}
+
+async function getStoredDownloadFolderItem() {
+  return idbTransaction(HANDLE_STORE, "readonly", (store) => store.get(DOWNLOAD_FOLDER_HANDLE_KEY));
+}
+
+async function getStoredDownloadFolderHandle() {
+  const item = await getStoredDownloadFolderItem();
+  return item?.handle ?? null;
+}
+
+async function deleteStoredDownloadFolderHandle() {
+  await idbTransaction(HANDLE_STORE, "readwrite", (store) => store.delete(DOWNLOAD_FOLDER_HANDLE_KEY));
 }
 
 async function clearCacheStores() {

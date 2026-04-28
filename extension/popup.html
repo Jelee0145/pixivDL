@@ -114,24 +114,36 @@
               <h2>浏览器下载</h2>
             </div>
           </div>
-          <p id="downloadMeta" class="download-meta">选择页面后下载；ZIP 适合多图归档。</p>
           <div class="segmented">
             <button id="zipMode" class="active" type="button">ZIP</button>
             <button id="fileMode" type="button">文件</button>
           </div>
-          <form id="settingsForm" class="settings-form">
-            <label class="field">
-              <span>保存目录</span>
-              <div class="directory-row">
-                <input id="downloadDirectoryInput" autocomplete="off" placeholder="PixivDL" />
-                <button id="browseDownloadDirectoryButton" class="secondary-button directory-browse-button" type="button">
-                  浏览
-                </button>
-              </div>
-              <small id="downloadDirectoryHint" class="field-hint">浏览器下载目录\PixivDL</small>
-            </label>
-            <details class="advanced-settings">
-              <summary>更多设置</summary>
+          <button id="downloadButton" class="primary-button" type="button" disabled>下载 0 张</button>
+          <div id="progress" class="progress" hidden>
+            <span id="progressText"></span>
+            <div><i id="progressBar"></i></div>
+          </div>
+          <p id="downloadMeta" class="download-meta">选择页面后下载；ZIP 适合多图归档。</p>
+          <details class="advanced-settings">
+            <summary>更多设置</summary>
+            <form id="settingsForm" class="settings-form">
+              <label class="field">
+                <span>保存目录</span>
+                <div class="directory-row">
+                  <input id="downloadDirectoryInput" autocomplete="off" placeholder="PixivDL" />
+                  <button id="browseDownloadDirectoryButton" class="secondary-button directory-browse-button" type="button">
+                    浏览
+                  </button>
+                  <button id="clearDownloadDirectoryButton" class="secondary-button directory-clear-button" type="button" hidden>
+                    默认
+                  </button>
+                </div>
+                <small id="downloadDirectoryHint" class="field-hint">Downloads\PixivDL</small>
+              </label>
+              <label class="ask-location-toggle">
+                <input id="askDownloadLocationInput" type="checkbox" />
+                <span>下载时询问保存位置</span>
+              </label>
               <label class="proxy-toggle">
                 <input id="proxyEnabledInput" type="checkbox" />
                 <span>本地代理</span>
@@ -146,14 +158,9 @@
                 <input id="proxyHostInput" autocomplete="off" placeholder="127.0.0.1" />
                 <input id="proxyPortInput" inputmode="numeric" autocomplete="off" placeholder="7890" />
               </div>
-            </details>
-            <button id="saveSettingsButton" class="secondary-button" type="submit">保存设置</button>
-          </form>
-          <button id="downloadButton" class="primary-button" type="button" disabled>下载 0 张</button>
-          <div id="progress" class="progress" hidden>
-            <span id="progressText"></span>
-            <div><i id="progressBar"></i></div>
-          </div>
+              <button id="saveSettingsButton" class="secondary-button" type="submit">保存设置</button>
+            </form>
+          </details>
         </aside>
       </section>
 
