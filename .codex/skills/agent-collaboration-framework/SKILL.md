@@ -1,19 +1,19 @@
 ---
-name: pixivdl-agent-collaboration
-description: Use when working in the PixivDL repository and coordination across multiple agents or chat windows matters. Enforces pre-task git review, shared update logging, hazard analysis before implementation, completion handoff notes, and optional memory-management storage for durable patterns.
+name: agent-collaboration-framework
+description: Use in development repositories when coordination across multiple agents or chat windows matters. Enforces pre-task git review, shared update logging, hazard analysis before implementation, completion handoff notes, and optional memory-management storage for durable patterns.
 ---
 
-# PixivDL Agent Collaboration
+# Agent Collaboration Framework
 
-Use this skill for work in `D:\pixivdl` when the task may span multiple chat windows, roles, or iterations.
+Use this skill when work may span multiple chat windows, roles, or iterations.
 
 ## Workflow
 
 Before implementation:
 
-1. Read `AGENTS.md`.
-2. Read `docs/agent-collaboration.md`.
-3. Read `docs/agent-update-log.md`.
+1. Read the repository's agent instructions, usually `AGENTS.md`.
+2. Read `docs/agent-collaboration.md` if present.
+3. Read `docs/agent-update-log.md` if present.
 4. Review recent git activity:
    - `git log --oneline -5`
    - `git diff --stat HEAD~1..HEAD`
@@ -40,8 +40,8 @@ After implementation, update the same entry with:
 Before implementing, explicitly consider:
 
 - Security and permission risks
-- Storage, cache, and proxy side effects
-- Release/dist sync implications
+- State, cache, storage, and data migration side effects
+- Build, release, and artifact sync implications
 - Documentation updates
 - Cross-agent coordination notes
 
@@ -52,5 +52,5 @@ If the task creates a durable rule or reusable pattern, use `memory-management` 
 Examples:
 
 - Security rules that later feature work must respect
-- Stable patterns for downloads, storage, or proxy behavior
+- Stable implementation patterns for repository-specific workflows
 - Coordination lessons worth reusing in later sessions

@@ -88,6 +88,29 @@
               <button id="openPixivButton" class="open-pixiv-button" type="button">打开 Pixiv</button>
             </div>
           </div>
+          <div id="batchSummary" hidden>
+            <div class="batch-copy">
+              <h2>批量下载</h2>
+              <p class="batch-desc">正在依次抓取与下载队列作品</p>
+            </div>
+            <dl class="work-meta">
+              <div>
+                <dt>已完成</dt>
+                <dd id="batchSuccessCount">0</dd>
+              </div>
+              <div>
+                <dt>已失败</dt>
+                <dd id="batchFailedCount">0</dd>
+              </div>
+              <div>
+                <dt>总进度</dt>
+                <dd id="batchProgressLabel">0 / 0</dd>
+              </div>
+            </dl>
+            <div class="work-actions">
+              <button id="exitBatchButton" class="favorite-button danger-button" type="button" style="width: 100%;">退出批量模式</button>
+            </div>
+          </div>
         </aside>
 
         <section class="images">
@@ -102,6 +125,9 @@
             </div>
           </div>
           <div id="imageGrid" class="image-grid"></div>
+          <div id="batchQueueView" hidden>
+            <div id="batchQueueGrid" class="batch-queue-grid"></div>
+          </div>
           <footer class="image-footer">
             <span>提示：点击缩略图切换选择</span>
           </footer>
@@ -119,6 +145,7 @@
             <button id="fileMode" type="button">文件</button>
           </div>
           <button id="downloadButton" class="primary-button" type="button" disabled>下载 0 张</button>
+          <button id="retryDownloadButton" class="secondary-button" type="button" hidden style="margin-top: var(--space-xs);">重试下载</button>
           <div id="progress" class="progress" hidden>
             <span id="progressText"></span>
             <div><i id="progressBar"></i></div>
@@ -158,6 +185,13 @@
                 <input id="proxyHostInput" autocomplete="off" placeholder="127.0.0.1" />
                 <input id="proxyPortInput" inputmode="numeric" autocomplete="off" placeholder="7890" />
               </div>
+              <div class="cache-management-group">
+                <span>本地缓存</span>
+                <div class="cache-stats-row">
+                  <span id="cacheSizeLabel">正在计算缓存大小...</span>
+                  <button id="clearCacheButton" class="secondary-button danger-button" type="button">清除缓存</button>
+                </div>
+              </div>
               <button id="saveSettingsButton" class="secondary-button" type="submit">保存设置</button>
             </form>
           </details>
@@ -170,11 +204,12 @@
             <p class="eyebrow">Favorites</p>
             <div class="favorites-title-line">
               <h2 id="favoritesTitle">本地收藏夹</h2>
-              <div class="favorites-actions">
-                <button id="importFavoritesButton" class="secondary-button" type="button" hidden>导入</button>
-                <button id="exportFavoritesButton" class="secondary-button" type="button" hidden>导出</button>
-                <input id="importFavoritesInput" type="file" accept=".json,application/json" hidden />
-              </div>
+          <div class="favorites-actions">
+            <button id="importFavoritesButton" class="secondary-button" type="button" hidden>导入</button>
+            <button id="exportFavoritesButton" class="secondary-button" type="button" hidden>导出</button>
+            <button id="batchDownloadFavoritesButton" class="secondary-button" type="button" hidden>批量下载</button>
+            <input id="importFavoritesInput" type="file" accept=".json,application/json" hidden />
+          </div>
             </div>
           </div>
           <button id="openFavoritesTabButton" class="secondary-button" type="button">新标签浏览</button>

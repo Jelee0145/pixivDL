@@ -839,6 +839,109 @@ h2 {
   width: 100%;
 }
 
+.cache-management-group {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--line);
+  margin-bottom: var(--space-sm);
+}
+
+.cache-management-group span {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.cache-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-xs);
+}
+
+.cache-stats-row span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cache-stats-row button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.danger-button {
+  border-color: oklch(0.6 0.2 29) !important;
+  color: oklch(0.6 0.2 29) !important;
+}
+
+.danger-button:hover {
+  background-color: oklch(0.96 0.02 29) !important;
+}
+
+.batch-queue-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 360px;
+  overflow-y: auto;
+  padding: var(--space-xs) 0;
+}
+
+.batch-queue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 12px;
+}
+
+.batch-queue-item.status-downloading {
+  border-color: var(--blue);
+  background: oklch(0.97 0.01 220);
+}
+
+.batch-queue-item.status-success {
+  border-color: oklch(0.7 0.15 145);
+  background: oklch(0.97 0.01 145);
+}
+
+.batch-queue-item.status-failed {
+  border-color: oklch(0.6 0.2 29);
+  background: oklch(0.97 0.01 29);
+}
+
+.batch-queue-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.batch-queue-pid {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.batch-queue-status {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-downloading .batch-queue-status {
+  color: var(--blue);
+}
+
+.status-success .batch-queue-status {
+  color: oklch(0.5 0.15 145);
+}
+
+.status-failed .batch-queue-status {
+  color: oklch(0.6 0.2 29);
+}
+
 .primary-button {
   width: 100%;
   min-height: 42px;

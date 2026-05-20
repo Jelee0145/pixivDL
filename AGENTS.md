@@ -68,7 +68,7 @@ This repository contains a Chrome/Edge Manifest V3 browser extension for downloa
   - Remaining risks or follow-up notes
 - Security fixes and cross-cutting bug fixes must be documented clearly enough that later feature work can follow the new rule without needing prior chat context.
 - When a durable coordination rule or implementation pattern emerges, use `memory-management` to store it when available.
-- The project-local skill `.codex/skills/pixivdl-agent-collaboration` should be used for tasks where cross-agent coordination matters.
+- The project-local skill `.codex/skills/agent-collaboration-framework` should be used for tasks where cross-agent coordination matters.
 
 ## Verification
 

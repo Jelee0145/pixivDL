@@ -1,6 +1,6 @@
-# PixivDL Agent Collaboration Framework
+# Agent Collaboration Framework
 
-This document defines the collaboration contract for agents working in this repository, especially when work is split across multiple chat windows or roles.
+This document defines a reusable collaboration contract for agents working in any development repository, especially when work is split across multiple chat windows or roles.
 
 ## Goals
 

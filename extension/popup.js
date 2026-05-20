@@ -37,7 +37,10 @@ const state = {
   failedPid: "",
   failureMessage: "",
   settings: { ...DEFAULT_SETTINGS },
-  localDownloadFolderHandle: null
+  localDownloadFolderHandle: null,
+  batch: null,
+  lastFailedDownload: null,
+  noteSaveTimers: new Map()
 };
 
 const elements = {
@@ -69,6 +72,7 @@ const elements = {
   openFavoritesTabButton: document.querySelector("#openFavoritesTabButton"),
   importFavoritesButton: document.querySelector("#importFavoritesButton"),
   exportFavoritesButton: document.querySelector("#exportFavoritesButton"),
+  batchDownloadFavoritesButton: document.querySelector("#batchDownloadFavoritesButton"),
   importFavoritesInput: document.querySelector("#importFavoritesInput"),
   favoritesTitle: document.querySelector("#favoritesTitle"),
   favoritesStatus: document.querySelector("#favoritesStatus"),
@@ -93,6 +97,7 @@ const elements = {
   proxyPortInput: document.querySelector("#proxyPortInput"),
   saveSettingsButton: document.querySelector("#saveSettingsButton"),
   downloadButton: document.querySelector("#downloadButton"),
+  retryDownloadButton: document.querySelector("#retryDownloadButton"),
   downloadMeta: document.querySelector("#downloadMeta"),
   progress: document.querySelector("#progress"),
   progressText: document.querySelector("#progressText"),
@@ -102,7 +107,16 @@ const elements = {
   closeDownloadChoiceButton: document.querySelector("#closeDownloadChoiceButton"),
   downloadChoiceMeta: document.querySelector("#downloadChoiceMeta"),
   favoriteZipDownloadButton: document.querySelector("#favoriteZipDownloadButton"),
-  favoriteFilesDownloadButton: document.querySelector("#favoriteFilesDownloadButton")
+  favoriteFilesDownloadButton: document.querySelector("#favoriteFilesDownloadButton"),
+  cacheSizeLabel: document.querySelector("#cacheSizeLabel"),
+  clearCacheButton: document.querySelector("#clearCacheButton"),
+  batchSummary: document.querySelector("#batchSummary"),
+  batchSuccessCount: document.querySelector("#batchSuccessCount"),
+  batchFailedCount: document.querySelector("#batchFailedCount"),
+  batchProgressLabel: document.querySelector("#batchProgressLabel"),
+  exitBatchButton: document.querySelector("#exitBatchButton"),
+  batchQueueView: document.querySelector("#batchQueueView"),
+  batchQueueGrid: document.querySelector("#batchQueueGrid")
 };
 
 if (document.readyState === "loading") {
@@ -126,6 +140,7 @@ async function init() {
   render();
   setTab(state.view);
   syncSettingsForm();
+  updateCacheSizeDisplay().catch(() => undefined);
   if (state.settings.proxyEnabled) {
     await applyProxySettings().catch((error) => showNotice(error.message));
   }
@@ -187,6 +202,7 @@ function bindEvents() {
   elements.openFavoritesTabButton.addEventListener("click", openFavoritesInTab);
   elements.importFavoritesButton.addEventListener("click", () => elements.importFavoritesInput.click());
   elements.exportFavoritesButton.addEventListener("click", exportFavorites);
+  elements.batchDownloadFavoritesButton.addEventListener("click", () => startBatchMode(state.favorites));
   elements.importFavoritesInput.addEventListener("change", importFavoritesFromFile);
   elements.selectAllButton.addEventListener("click", toggleSelectAll);
   elements.favoriteButton.addEventListener("click", toggleFavorite);
@@ -200,6 +216,7 @@ function bindEvents() {
   elements.askDownloadLocationInput.addEventListener("change", toggleAskDownloadLocation);
   elements.settingsForm.addEventListener("submit", saveSettingsFromForm);
   elements.downloadButton.addEventListener("click", downloadSelected);
+  elements.retryDownloadButton.addEventListener("click", retryFailedDownload);
   elements.closeDownloadChoiceButton.addEventListener("click", closeDownloadChoice);
   elements.downloadChoiceModal.addEventListener("click", (event) => {
     if (event.target === elements.downloadChoiceModal) {
@@ -213,6 +230,8 @@ function bindEvents() {
   });
   elements.favoriteZipDownloadButton.addEventListener("click", () => downloadPendingFavorite("zip"));
   elements.favoriteFilesDownloadButton.addEventListener("click", () => downloadPendingFavorite("files"));
+  elements.clearCacheButton.addEventListener("click", clearCacheAction);
+  elements.exitBatchButton.addEventListener("click", exitBatchMode);
 }
 
 async function loadWork(pid) {
@@ -378,21 +397,36 @@ async function fetchImageBlobCached(url, pid, key) {
 }
 
 async function fetchImageBlob(url, pid) {
-  const response = await fetch(url, {
-    credentials: "omit",
-    referrer: `${PIXIV_ORIGIN}/artworks/${pid}`
-  });
-  if (response.status === 401 || response.status === 403) {
-    throw new Error("图片请求被 Pixiv 拒绝，可能需要刷新登录态或关闭防盗链拦截");
+  const maxAttempts = 3;
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        credentials: "omit",
+        referrer: `${PIXIV_ORIGIN}/artworks/${pid}`
+      });
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("图片请求被 Pixiv 拒绝，可能需要刷新登录态或关闭防盗链拦截");
+      }
+      if (!response.ok) {
+        throw new Error(`图片请求失败：HTTP ${response.status}`);
+      }
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.startsWith("image/")) {
+        throw new Error("Pixiv 返回的不是图片内容");
+      }
+      return await response.blob();
+    } catch (error) {
+      lastError = error;
+      if (error.message.includes("401") || error.message.includes("403") || error.message.includes("Pixiv 拒绝")) {
+        throw error;
+      }
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+      }
+    }
   }
-  if (!response.ok) {
-    throw new Error(`图片请求失败：HTTP ${response.status}`);
-  }
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.startsWith("image/")) {
-    throw new Error("Pixiv 返回的不是图片内容");
-  }
-  return response.blob();
+  throw lastError || new Error("获取图片失败（已重试 3 次）");
 }
 
 function toggleSelectAll() {
@@ -430,9 +464,55 @@ async function downloadSelected() {
       await downloadZip(state.work, pages);
     }
     completed = true;
+    state.lastFailedDownload = null;
+    elements.retryDownloadButton.hidden = true;
     showNotice(downloadDoneMessage());
   } catch (error) {
     const message = error instanceof Error ? error.message : "下载失败";
+    state.lastFailedDownload = {
+      work: state.work,
+      pages: state.work.pages.filter((page) => state.selectedPages.has(page.page)),
+      mode: state.mode
+    };
+    elements.retryDownloadButton.hidden = false;
+    showNotice(message);
+    if (!elements.progress.classList.contains("error")) {
+      setProgress(0, message, "error");
+    }
+  } finally {
+    if (completed) {
+      setProgress(0, "");
+    }
+    setBusy(false);
+  }
+}
+
+async function retryFailedDownload() {
+  const saved = state.lastFailedDownload;
+  if (!saved || state.busy) {
+    return;
+  }
+  elements.retryDownloadButton.hidden = true;
+  state.work = saved.work;
+  state.selectedPages = new Set(saved.pages.map((p) => p.page));
+  state.mode = saved.mode;
+  setBusy(true);
+  let completed = false;
+  try {
+    if (saved.mode === "files") {
+      if (saved.pages.length === 1) {
+        await downloadSinglePage(saved.work, saved.pages[0]);
+      } else {
+        await downloadFiles(saved.work, saved.pages);
+      }
+    } else {
+      await downloadZip(saved.work, saved.pages);
+    }
+    completed = true;
+    state.lastFailedDownload = null;
+    showNotice(downloadDoneMessage());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "重试下载失败";
     showNotice(message);
     if (!elements.progress.classList.contains("error")) {
       setProgress(0, message, "error");
@@ -504,8 +584,160 @@ async function downloadPendingFavorite(mode) {
   }
 }
 
+function isBatchMode() {
+  return Boolean(state.batch);
+}
+
+function startBatchMode(favorites) {
+  if (!favorites || favorites.length === 0 || state.busy) {
+    return;
+  }
+  state.batch = {
+    queue: favorites.map((f) => ({ favorite: f, status: "pending", error: null })),
+    index: 0,
+    success: 0,
+    failed: 0,
+    mode: state.mode,
+    running: false
+  };
+  setTab("workspace");
+  renderBatch();
+  runBatchDownload();
+}
+
+function exitBatchMode() {
+  state.batch = null;
+  renderBatch();
+  render();
+}
+
+function renderBatch() {
+  if (!elements.batchSummary) return;
+  const batch = state.batch;
+  elements.batchSummary.hidden = !batch;
+  elements.workSummary.hidden = Boolean(batch);
+  elements.imageGrid.closest("section").hidden = Boolean(batch);
+  elements.batchQueueView.hidden = !batch;
+  if (elements.batchDownloadFavoritesButton) {
+    elements.batchDownloadFavoritesButton.hidden = Boolean(batch);
+  }
+  if (!batch) {
+    elements.batchQueueGrid.textContent = "";
+    return;
+  }
+  elements.batchSuccessCount.textContent = String(batch.success);
+  elements.batchFailedCount.textContent = String(batch.failed);
+  const total = batch.queue.length;
+  const done = batch.success + batch.failed;
+  elements.batchProgressLabel.textContent = `${done} / ${total}`;
+  renderBatchQueue();
+}
+
+function renderBatchQueue() {
+  if (!elements.batchQueueGrid) return;
+  if (!state.batch) {
+    elements.batchQueueGrid.textContent = "";
+    return;
+  }
+  const pidToElement = new Map();
+  for (const child of elements.batchQueueGrid.children) {
+    if (child.dataset.pid) {
+      pidToElement.set(child.dataset.pid, child);
+    }
+  }
+  const expectedPids = new Set();
+  for (const item of state.batch.queue) {
+    const pid = item.favorite.pid;
+    expectedPids.add(pid);
+    let card = pidToElement.get(pid);
+    if (!card) {
+      card = document.createElement("div");
+      card.dataset.pid = pid;
+      elements.batchQueueGrid.append(card);
+    }
+    const expectedClass = `batch-queue-item status-${item.status}`;
+    if (card.className !== expectedClass) {
+      card.className = expectedClass;
+    }
+    let titleEl = card.querySelector(".batch-queue-title");
+    let pidEl = card.querySelector(".batch-queue-pid");
+    let statusEl = card.querySelector(".batch-queue-status");
+    if (!titleEl) {
+      const title = document.createElement("span");
+      title.className = "batch-queue-title";
+      title.textContent = item.favorite.title;
+      pidEl = document.createElement("span");
+      pidEl.className = "batch-queue-pid";
+      pidEl.textContent = `PID: ${item.favorite.pid}`;
+      statusEl = document.createElement("span");
+      statusEl.className = "batch-queue-status";
+      card.append(title, pidEl, statusEl);
+      titleEl = title;
+    }
+    titleEl.textContent = item.favorite.title;
+    pidEl.textContent = `PID: ${item.favorite.pid}`;
+    if (item.status === "pending") statusEl.textContent = "等待中";
+    else if (item.status === "downloading") statusEl.textContent = "下载中...";
+    else if (item.status === "success") statusEl.textContent = "成功";
+    else if (item.status === "failed") statusEl.textContent = `失败: ${item.error || "未知"}`;
+  }
+  for (const child of Array.from(elements.batchQueueGrid.children)) {
+    if (!expectedPids.has(child.dataset.pid)) {
+      elements.batchQueueGrid.removeChild(child);
+    }
+  }
+  const active = elements.batchQueueGrid.querySelector(".status-downloading");
+  if (active) {
+    active.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+
+async function runBatchDownload() {
+  const batch = state.batch;
+  if (!batch || batch.running) return;
+  batch.running = true;
+  setBusy(true);
+  try {
+    for (let i = batch.index; i < batch.queue.length; i += 1) {
+      if (!state.batch) break;
+      const item = batch.queue[i];
+      batch.index = i;
+      item.status = "downloading";
+      renderBatchQueue();
+      try {
+        const work = await loadWorkForDownload(item.favorite);
+        const pages = work.pages;
+        if (batch.mode === "files") {
+          await downloadFiles(work, pages);
+        } else {
+          await downloadZip(work, pages);
+        }
+        item.status = "success";
+        batch.success += 1;
+      } catch (error) {
+        item.status = "failed";
+        const message = error instanceof Error ? error.message : "下载失败";
+        item.error = message;
+        batch.failed += 1;
+        if (message.includes("部分") || message.includes("成功")) {
+          showNotice(`批量下载：${item.favorite.title} 部分成功 - ${message}`);
+        }
+      }
+      renderBatch();
+      if (state.batch && i < batch.queue.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+  } finally {
+    setBusy(false);
+    if (state.batch) {
+      state.batch.running = false;
+    }
+  }
+}
+
 async function downloadSinglePage(work, page) {
-  setProgress(0.2, `正在下载 p${page.page}`);
+  if (!isBatchMode()) setProgress(0.2, `正在下载 p${page.page}`);
   try {
     const blob = await fetchImageBlobCached(
       page.originalUrl,
@@ -515,16 +747,17 @@ async function downloadSinglePage(work, page) {
     const filename = `${work.pid}_p${page.page}.${page.extension}`;
     await browserDownloadBlob(blob, filename);
   } catch (error) {
-    pauseProgressOnPageError(page, 0, 1, error);
+    if (!isBatchMode()) pauseProgressOnPageError(page, 0, 1, error);
     throw error;
   }
-  setProgress(1, "完成");
+  if (!isBatchMode()) setProgress(1, "完成");
 }
 
 async function downloadFiles(work, pages) {
+  const failures = [];
   for (let index = 0; index < pages.length; index += 1) {
     const page = pages[index];
-    setProgress(index / pages.length, `正在下载 p${page.page}`);
+    if (!isBatchMode()) setProgress(index / pages.length, `正在下载 p${page.page}`);
     try {
       const blob = await fetchImageBlobCached(
         page.originalUrl,
@@ -534,18 +767,29 @@ async function downloadFiles(work, pages) {
       const filename = `${work.pid}_${sanitizeFilename(work.title)}/${work.pid}_p${page.page}.${page.extension}`;
       await browserDownloadBlob(blob, filename);
     } catch (error) {
-      pauseProgressOnPageError(page, index, pages.length, error);
-      throw error;
+      if (!isBatchMode()) pauseProgressOnPageError(page, index, pages.length, error);
+      failures.push({ page: page.page, error });
     }
   }
-  setProgress(1, "完成");
+  if (failures.length > 0) {
+    const failedPages = failures.map(f => `p${f.page}`).join(", ");
+    if (!isBatchMode()) setProgress(
+      (pages.length - failures.length) / pages.length,
+      `下载结束：成功 ${pages.length - failures.length} 张，失败 ${failures.length} 张 (${failedPages})`,
+      "error"
+    );
+    throw new Error(`部分图片下载失败: ${failedPages}`);
+  } else {
+    if (!isBatchMode()) setProgress(1, "完成");
+  }
 }
 
 async function downloadZip(work, pages) {
   const zip = new ZipBuilder();
+  const failures = [];
   for (let index = 0; index < pages.length; index += 1) {
     const page = pages[index];
-    setProgress(index / pages.length, `正在获取 p${page.page}`);
+    if (!isBatchMode()) setProgress(index / pages.length, `正在获取 p${page.page}`);
     try {
       const blob = await fetchImageBlobCached(
         page.originalUrl,
@@ -555,15 +799,30 @@ async function downloadZip(work, pages) {
       const bytes = new Uint8Array(await blob.arrayBuffer());
       zip.addFile(`${work.pid}_p${page.page}.${page.extension}`, bytes);
     } catch (error) {
-      pauseProgressOnPageError(page, index, pages.length, error);
-      throw error;
+      if (!isBatchMode()) pauseProgressOnPageError(page, index, pages.length, error);
+      failures.push({ page: page.page, error });
     }
   }
-  setProgress(0.92, "正在生成 ZIP");
+  if (zip.files.length === 0) {
+    const failedPages = failures.map(f => `p${f.page}`).join(", ");
+    if (!isBatchMode()) setProgress(0, `生成 ZIP 失败：所有页面均获取失败 (${failedPages})`, "error");
+    throw new Error(`所有图片获取失败: ${failedPages}`);
+  }
+  if (!isBatchMode()) setProgress(0.92, "正在生成 ZIP");
   const zipBlob = zip.toBlob();
   const filename = `${work.pid}_${sanitizeFilename(work.title)}.zip`;
   await browserDownloadBlob(zipBlob, filename);
-  setProgress(1, "完成");
+  if (failures.length > 0) {
+    const failedPages = failures.map(f => `p${f.page}`).join(", ");
+    if (!isBatchMode()) setProgress(
+      (pages.length - failures.length) / pages.length,
+      `打包完成，但有部分失败：成功 ${pages.length - failures.length} 张，失败 ${failures.length} 张 (${failedPages})`,
+      "error"
+    );
+    throw new Error(`部分图片打包失败: ${failedPages}`);
+  } else {
+    if (!isBatchMode()) setProgress(1, "完成");
+  }
 }
 
 async function browserDownloadBlob(blob, filename) {
@@ -684,12 +943,21 @@ async function getAvailableFileName(directory, fileName) {
   throw new Error("无法生成不重复的下载文件名");
 }
 
+function clearNoteSaveTimer(pid) {
+  const existingTimer = state.noteSaveTimers.get(pid);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    state.noteSaveTimers.delete(pid);
+  }
+}
+
 async function toggleFavorite() {
   if (!state.work) {
     return;
   }
   const existingIndex = state.favorites.findIndex((favorite) => favorite.pid === state.work.pid);
   if (existingIndex >= 0) {
+    clearNoteSaveTimer(state.work.pid);
     state.favorites.splice(existingIndex, 1);
     await saveFavorites();
     showNotice("已取消收藏");
@@ -1046,7 +1314,8 @@ async function exportFavorites() {
       authorId: favorite.authorId,
       pageCount: favorite.pageCount,
       coverDataUrl: favorite.coverDataUrl,
-      addedAt: favorite.addedAt
+      addedAt: favorite.addedAt,
+      note: favorite.note || ""
     }))
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -1108,7 +1377,8 @@ function normalizeImportedFavorites(payload) {
       authorId: String(item?.authorId ?? "").slice(0, 80),
       pageCount: Math.max(1, Number.parseInt(item?.pageCount, 10) || 1),
       coverDataUrl: validCoverDataUrl(item?.coverDataUrl) ? item.coverDataUrl : "",
-      addedAt: validDateString(item?.addedAt) ? item.addedAt : new Date().toISOString()
+      addedAt: validDateString(item?.addedAt) ? item.addedAt : new Date().toISOString(),
+      note: typeof item?.note === "string" ? item.note.slice(0, 1000) : ""
     });
   }
   return result;
@@ -1370,6 +1640,7 @@ function renderFavorites() {
   elements.openFavoritesTabButton.hidden = state.openedAsTab;
   elements.importFavoritesButton.hidden = !state.openedAsTab;
   elements.exportFavoritesButton.hidden = !state.openedAsTab;
+  elements.batchDownloadFavoritesButton.hidden = !state.openedAsTab || state.favorites.length === 0;
   elements.gallerySearchForm.hidden = !state.openedAsTab;
   elements.favoriteDetail.hidden = !state.openedAsTab;
   if (state.openedAsTab && elements.gallerySearchInput.value !== state.favoriteQuery) {
@@ -1484,6 +1755,9 @@ function renderFavorites() {
 }
 
 function renderFavoriteDetail(favorite) {
+  if (favorite && state.selectedFavoritePid !== favorite.pid) {
+    clearNoteSaveTimer(state.selectedFavoritePid);
+  }
   elements.favoriteDetail.textContent = "";
   if (!state.openedAsTab) {
     return;
@@ -1534,6 +1808,25 @@ function renderFavoriteDetail(favorite) {
   const noteInput = document.createElement("textarea");
   noteInput.placeholder = "点击输入备注（可选）";
   noteInput.rows = 3;
+  noteInput.value = favorite.note || "";
+  noteInput.addEventListener("input", () => {
+    favorite.note = noteInput.value;
+    const existingTimer = state.noteSaveTimers.get(favorite.pid);
+    if (existingTimer) clearTimeout(existingTimer);
+    const timer = setTimeout(() => {
+      state.noteSaveTimers.delete(favorite.pid);
+      saveFavorites();
+    }, 500);
+    state.noteSaveTimers.set(favorite.pid, timer);
+  });
+  noteInput.addEventListener("blur", () => {
+    const existingTimer = state.noteSaveTimers.get(favorite.pid);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      state.noteSaveTimers.delete(favorite.pid);
+    }
+    saveFavorites();
+  });
   note.append(noteLabel, noteInput);
 
   const actions = document.createElement("div");
@@ -1631,6 +1924,19 @@ function cacheImageKey(pid, page, kind) {
   return `${pid}:${page}:${kind}`;
 }
 
+let activeDbConnection = null;
+
+async function getDatabase() {
+  if (activeDbConnection) {
+    return activeDbConnection;
+  }
+  activeDbConnection = await openDatabase();
+  activeDbConnection.onclose = () => {
+    activeDbConnection = null;
+  };
+  return activeDbConnection;
+}
+
 function openDatabase() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -1652,7 +1958,7 @@ function openDatabase() {
 }
 
 async function idbTransaction(storeName, mode, callback) {
-  const db = await openDatabase();
+  const db = await getDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(storeName, mode);
     const store = transaction.objectStore(storeName);
@@ -1660,20 +1966,16 @@ async function idbTransaction(storeName, mode, callback) {
     try {
       request = callback(store);
     } catch (error) {
-      db.close();
       reject(error);
       return;
     }
     transaction.oncomplete = () => {
-      db.close();
       resolve(request?.result);
     };
     transaction.onerror = () => {
-      db.close();
       reject(transaction.error ?? new Error("本地缓存操作失败"));
     };
     transaction.onabort = () => {
-      db.close();
       reject(transaction.error ?? new Error("本地缓存操作取消"));
     };
   });
@@ -1823,3 +2125,39 @@ const CRC_TABLE = (() => {
   }
   return table;
 })();
+
+async function updateCacheSizeDisplay() {
+  if (!elements.cacheSizeLabel) return;
+  try {
+    const estimate = await navigator.storage.estimate();
+    const usage = estimate.usage || 0;
+    elements.cacheSizeLabel.textContent = `已用空间: ${formatBytes(usage)}`;
+  } catch (error) {
+    elements.cacheSizeLabel.textContent = "缓存空间: 无法读取";
+  }
+}
+
+async function clearCacheAction() {
+  if (!confirm("确定要清除所有缓存的作品和图片数据吗？\n清除后，离线查看或重新下载将需要重新获取网络数据。")) {
+    return;
+  }
+  setBusy(true);
+  try {
+    await clearCacheStores();
+    showNotice("本地缓存已成功清理");
+    await updateCacheSizeDisplay();
+  } catch (error) {
+    showNotice("缓存清理失败：" + (error instanceof Error ? error.message : "未知错误"));
+  } finally {
+    setBusy(false);
+  }
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+

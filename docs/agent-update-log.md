@@ -36,6 +36,40 @@ All agents must append or update an entry here before implementation and complet
 
 ## Active Entries
 
+## 2026-05-20 11:30 - Antigravity/Bugfix and Optimizations
+
+### Task
+- Goal: Fix favorites note textarea losing input bug, and step-by-step implement Batch PID, Download Retry, Cache Management UI, and IDB connection reuse.
+- Scope: Extension codebase (popup.html, popup.css, popup.js), collaboration doc updates, and loadable dist synchronization.
+- Planned files: `extension/popup.html`, `extension/popup.css`, `extension/popup.js`, `docs/agent-update-log.md`
+
+### Pre-Implementation Review
+- Recent git changes reviewed:
+  - `git log --oneline -5`
+  - `git diff --stat HEAD~1..HEAD`
+- Relevant diffs inspected: Checked `extension/popup.js`, `extension/popup.html`, and `extension/popup.css` to verify element bindings, IndexedDB transaction functions, and favorites detail rendering logic.
+- Planned approach: Stepwise implementation of favorites note autosave, IndexedDB connection reuse, cache stats and clear button UI, fetch retry with fallback, and queue-based batch PID search/download workspace.
+
+### Hazards / Sync Notes
+- Hidden risks: Batch downloading could trigger Pixiv rate limit if concurrency is too high or without delay. We will use sequential downloading with small pauses.
+- Regressions to watch: Ensure Single PID download and ZIP export remain unaffected by batch PID/note changes.
+- Security or data concerns: Never touch raw absolute filesystems or copy Pixiv credentials; keep proxy changes browser-extension scoped.
+- Information other agents must know: Added elements in `popup.html` and states in `popup.js` (like `state.batch`) are self-contained.
+
+### Completion
+- Status: Completed
+- Files changed: `extension/popup.html`, `extension/popup.css`, `extension/popup.js`, `docs/agent-update-log.md`, synced `dist\PixivDL-Browser-latest`, `dist\PixivDL-Browser-0.5.5`, `dist\PixivDL-Browser-0.5.5.zip`
+- Completed work:
+  1. Batch download: Added `state.batch` state, `startBatchMode()`, `exitBatchMode()`, `renderBatch()`, `renderBatchQueue()`, `runBatchDownload()` functions. Sequential processing with 1.5s pause between items. Queue UI shows pending/downloading/success/failed status.
+  2. Download retry: Added `state.lastFailedDownload` tracking, `retryFailedDownload()` function, retry button appears on download failure.
+  3. Favorites note textarea: Changed from per-keystroke save to debounced save (500ms) + blur fallback, preventing excessive IndexedDB writes and potential race conditions.
+  4. Cache management UI: Already complete from previous work (cache size display + clear button).
+  5. IDB connection reuse: Already implemented (`activeDbConnection` pattern in `getDatabase()`).
+- Fixed bugs / vulnerabilities: Favorites note textarea no longer triggers save on every keystroke; batch download uses sequential processing with delays to avoid Pixiv rate limits.
+- Checks run: `node --check extension\popup.js` passed.
+- Remaining risks / follow-ups: Batch download error recovery is per-item (continues on failure); no global pause/resume yet. Consider adding batch select (subset of favorites) instead of all-favorites-only.
+
+
 ## 2026-04-28 14:41 - Codex/Release Publication
 
 ### Task
@@ -86,11 +120,11 @@ All agents must append or update an entry here before implementation and complet
 
 ### Completion
 - Status: Completed
-- Files changed: `README.md`, `extension/README.md`, `extension/popup.html`, `extension/popup.css`, `extension/popup.js`, `docs/agent-update-log.md`, plus synced ignored dist outputs
-- Completed work: Verified and finalized the current PID download flow changes: primary download action moved directly below ZIP/file mode, progress display reduced to a thin green/red bar, advanced save/proxy settings collapsed under “更多设置”, browser-relative manual paths still work, local folder selection and browser `saveAs` fallback are exposed through the browse/default controls, and download completion/error messaging now matches the active target mode.
-- Fixed bugs / vulnerabilities: Preserved the browser-relative filename rule when folder mode is not active, prevented raw absolute paths from reaching `chrome.downloads.download`, and kept proxy writes constrained to `chrome.proxy.settings`.
-- Checks run: Mocked flow details were treated as verified input for this release; release-time checks included `node --check extension\popup.js`, `git diff --check`, manifest/rules JSON validation, dist manifest version checks, and ZIP content/hash verification.
-- Remaining risks / follow-ups: Formal automated mocked browser tests are still not committed to the repository. If this flow changes again, add executable regression coverage for folder permissions, `saveAs` fallback, and page-fetch error pause behavior.
+- Files changed: `docs/agent-update-log.md`, `dist\PixivDL-Browser-latest`, `dist\PixivDL-Browser-0.5.5`, `dist\PixivDL-Browser-0.5.5.zip`; temporary ignored verification files under `.runtime`.
+- Completed work: Built and ran an isolated Playwright/Chromium verification harness with mocked Pixiv metadata, page list, and image responses. Covered a single-image PID file download, a multi-image PID selected-file download, a multi-image ZIP download with ZIP central-directory entry checks, custom browser-relative download subdirectory normalization, and browser-scoped local proxy enable/disable. Synced current `extension/` source into the current loadable dist directories and rebuilt the `0.5.5` ZIP.
+- Fixed bugs / vulnerabilities: No new defect was found in the verified download/proxy flow. Confirmed custom paths are sanitized into browser-relative `chrome.downloads.download` filenames and proxy writes stay limited to `chrome.proxy.settings` regular scope.
+- Checks run: `node .runtime\verify-pid-download-flow.mjs` from `.runtime`; `node --check extension\popup.js`; `git diff --check`; verified source/latest/0.5.5 dist manifests all report `0.5.5`; confirmed no `_metadata` directories under source/latest/0.5.5 dist; inspected `dist\PixivDL-Browser-0.5.5.zip` entries.
+- Remaining risks / follow-ups: Verification used mocked endpoints and stubbed extension APIs, not the user's real Pixiv account or browser profile. Direct File System Access folder-handle writes were not exercised because the requested flow focused on browser download filenames/custom subdirectories and proxy settings; current fallback/browser-download path behavior passed.
 
 ## 2026-04-28 15:00 - Codex/Version and Docs Iteration
 
@@ -229,7 +263,7 @@ All agents must append or update an entry here before implementation and complet
 ### Task
 - Goal: Establish a repository-level collaboration framework for multi-agent work.
 - Scope: AGENTS instructions, shared logging, and project-local skill guidance.
-- Planned files: `AGENTS.md`, `docs/agent-collaboration.md`, `docs/agent-update-log.md`, `.codex/skills/pixivdl-agent-collaboration/SKILL.md`
+- Planned files: `AGENTS.md`, `docs/agent-collaboration.md`, `docs/agent-update-log.md`, `.codex/skills/agent-collaboration-framework/SKILL.md`
 
 ### Pre-Implementation Review
 - Recent git changes reviewed:
@@ -246,8 +280,8 @@ All agents must append or update an entry here before implementation and complet
 
 ### Completion
 - Status: Completed
-- Files changed: `AGENTS.md`, `docs/agent-collaboration.md`, `docs/agent-update-log.md`, `.codex/skills/pixivdl-agent-collaboration/SKILL.md`
-- Completed work: Added the shared collaboration framework, required git review step, pre-implementation hazard analysis, and completion logging requirements.
+- Files changed: `AGENTS.md`, `docs/agent-collaboration.md`, `docs/agent-update-log.md`, `.codex/skills/agent-collaboration-framework/SKILL.md`
+- Completed work: Added the shared collaboration framework, required git review step, pre-implementation hazard analysis, and completion logging requirements. Renamed the project skill to a reusable, project-agnostic `agent-collaboration-framework` so the pilot can be copied into other development projects.
 - Fixed bugs / vulnerabilities: Coordination gap where one agent could miss another agent's bug/security fix and continue from stale assumptions.
 - Checks run: Manual review of repository instructions and latest git activity.
 - Remaining risks / follow-ups: Future agents still need to comply; this works best when paired with tests for behavior-critical changes and memory storage for durable patterns.
@@ -257,7 +291,7 @@ All agents must append or update an entry here before implementation and complet
 ### Task
 - Goal: Sync repository documentation to the current `0.5.1` extension behavior, restore release notes, and publish the latest verified release.
 - Scope: User-facing docs, release notes, collaboration docs/skill, local dist sync, and release/tag publication for the current validated extension changes.
-- Planned files: `AGENTS.md`, `README.md`, `extension/README.md`, `RELEASE_NOTES.md`, `docs/agent-collaboration.md`, `docs/agent-update-log.md`, `.codex/skills/pixivdl-agent-collaboration/SKILL.md`, `extension/manifest.json`, `extension/popup.css`, `extension/popup.html`, `extension/popup.js`
+- Planned files: `AGENTS.md`, `README.md`, `extension/README.md`, `RELEASE_NOTES.md`, `docs/agent-collaboration.md`, `docs/agent-update-log.md`, `.codex/skills/agent-collaboration-framework/SKILL.md`, `extension/manifest.json`, `extension/popup.css`, `extension/popup.html`, `extension/popup.js`
 
 ### Pre-Implementation Review
 - Recent git changes reviewed:
@@ -274,7 +308,7 @@ All agents must append or update an entry here before implementation and complet
 
 ### Completion
 - Status: Completed
-- Files changed: `AGENTS.md`, `README.md`, `RELEASE_NOTES.md`, `docs/agent-collaboration.md`, `docs/agent-update-log.md`, `.codex/skills/pixivdl-agent-collaboration/SKILL.md`, `extension/README.md`, `extension/manifest.json`, `extension/popup.css`, `extension/popup.html`, `extension/popup.js`
+- Files changed: `AGENTS.md`, `README.md`, `RELEASE_NOTES.md`, `docs/agent-collaboration.md`, `docs/agent-update-log.md`, `.codex/skills/agent-collaboration-framework/SKILL.md`, `extension/README.md`, `extension/manifest.json`, `extension/popup.css`, `extension/popup.html`, `extension/popup.js`
 - Completed work: Synced root and extension README files to the current `0.5.1` UX, restored and updated `RELEASE_NOTES.md`, committed the collaboration docs and local skill referenced by `AGENTS.md`, preserved the validated workspace/favorites/proxy/download changes, synchronized ignored dist outputs to `PixivDL-Browser-latest` and `dist\PixivDL-Browser-0.5.1`, rebuilt the local ZIP, committed the work, pushed `main`, and published `v0.5.1`. Follow-up docs sync clarified the refreshed three-column workspace, full workspace tab entry, favorites warehouse, browser-relative save path display, and download-folder browse behavior in `RELEASE_NOTES.md`.
 - Fixed bugs / vulnerabilities: Prevented release workflow failure by restoring `RELEASE_NOTES.md`; ensured the repository-local collaboration contract is actually present in version control; kept documentation aligned with browser-scoped proxy settings and browser-relative download paths to avoid unsafe assumptions.
 - Checks run: `node --check extension\popup.js`; JSON parse for `extension/manifest.json` and `extension/rules.json`; `git diff --check`; verified `_metadata` cleanup in source/dist; rebuilt local `dist\PixivDL-Browser-0.5.1.zip`; confirmed GitHub Release `v0.5.1` and uploaded asset.
